@@ -1,4 +1,4 @@
-# OpenBioCard
+# OpenBioCard :3
 
 ✨ 免费开源的去中心化电子名片软件 ✨
 
