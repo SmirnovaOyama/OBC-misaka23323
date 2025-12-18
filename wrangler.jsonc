@@ -16,6 +16,14 @@
     "binding": "ASSETS"
   },
 
+  // Custom domain routing
+  "routes": [
+    {
+      "pattern": "obc.misaka23323.com/*",
+      "zone_name": "misaka23323.com"
+    }
+  ],
+
   // 观测 / 日志（你原来的配置，保留）
   "observability": {
     "logs": {
