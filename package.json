@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "pnpm --filter openbiocard-frontend dev",
     "build": "pnpm -r build",
-    "deploy": "pnpm --filter openbiocard-backend deploy"
+    "deploy": "pnpm --filter openbiocard-backend deploy",
+    "wrangler": "wrangler"
+  },
+  "devDependencies": {
+    "wrangler": "^4.55.0"
   }
 }
