@@ -1,7 +1,7 @@
 <template>
   <div style="min-height: 100vh; background: var(--gradient-bg);">
     <!-- 导航栏 -->
-    <Navigation :current-user="currentUser" @logout="logout" />
+    <Navigation :current-user="currentUser" :site-settings="settings" @logout="logout" />
 
     <!-- 404 页面 -->
     <UserNotFound v-if="userNotFound" :username="username" />
@@ -13,6 +13,7 @@
         <ProfileHeader
           :profile-data="profileData"
           :can-edit="canEdit"
+          :site-settings="settings"
           @toggle-edit="editMode = !editMode"
         />
 
@@ -178,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
@@ -201,16 +202,29 @@ import WorkExperienceEdit from '../components/WorkExperienceEdit.vue'
 import SchoolExperience from '../components/SchoolExperience.vue'
 import SchoolExperienceEdit from '../components/SchoolExperienceEdit.vue'
 import { useSocialLinksData } from '../composables/useGitHubData'
-import { userAPI } from '../api/index.js'
+import { userAPI, authAPI } from '../api/index.js'
 
 const route = useRoute()
 const { t } = useI18n()
 const username = route.params.username
 
+// 系统设置
+const settings = ref({ title: 'OpenBioCard', logo: '' })
+
 // 用户状态
 const currentUser = ref(null)
 const token = ref('')
 const userNotFound = ref(false)
+
+// 获取系统设置
+const fetchSettings = async () => {
+  try {
+    const data = await userAPI.getSettings()
+    settings.value = data
+  } catch (error) {
+    console.error('获取系统设置失败:', error)
+  }
+}
 
 // 资料数据
 const profileData = ref({
@@ -331,29 +345,35 @@ const loadProfile = async () => {
     // 初始化社交媒体链接数据（获取 GitHub 信息并启动定时更新）
     await initializeSocialLinks()
 
-    // 设置页面meta tags
-    const title = profileData.value.username
-    const description = profileData.value.bio || `${title} 的个人资料页面`
-    const image = profileData.value.avatar || '/icon/logo.svg'
-    const url = window.location.href
-
     useHead({
-      title: `${title} - OpenBioCard`,
+      title: computed(() => `${profileData.value.username} - ${settings.value.title || 'OpenBioCard'}`),
       meta: [
-        { name: 'description', content: description },
+        { name: 'description', content: computed(() => profileData.value.bio || `${profileData.value.username} 的个人资料页面`) },
         // Open Graph
-        { property: 'og:title', content: `${title} - OpenBioCard` },
-        { property: 'og:description', content: description },
-        { property: 'og:image', content: image },
-        { property: 'og:url', content: url },
+        { property: 'og:title', content: computed(() => `${profileData.value.username} - ${settings.value.title || 'OpenBioCard'}`) },
+        { property: 'og:description', content: computed(() => profileData.value.bio || `${profileData.value.username} 的个人资料页面`) },
+        { property: 'og:image', content: computed(() => profileData.value.avatar || '/icon/logo.svg') },
+        { property: 'og:url', content: window.location.href },
         { property: 'og:type', content: 'profile' },
         // Twitter Card
         { name: 'twitter:card', content: 'summary_large_image' },
-        { name: 'twitter:title', content: `${title} - OpenBioCard` },
-        { name: 'twitter:description', content: description },
-        { name: 'twitter:image', content: image }
+        { name: 'twitter:title', content: computed(() => `${profileData.value.username} - ${settings.value.title || 'OpenBioCard'}`) },
+        { name: 'twitter:description', content: computed(() => profileData.value.bio || `${profileData.value.username} 的个人资料页面`) },
+        { name: 'twitter:image', content: computed(() => profileData.value.avatar || '/icon/logo.svg') }
       ]
     })
+
+    // 监听 logo 变化并更新 favicon
+    watch(() => settings.value.logo, (newLogo) => {
+      if (typeof document !== 'undefined') {
+        const svgIcon = document.getElementById('favicon-svg')
+        const icoIcon = document.getElementById('favicon-ico')
+        if (newLogo) {
+          if (svgIcon) svgIcon.href = newLogo
+          if (icoIcon) icoIcon.href = newLogo
+        }
+      }
+    }, { immediate: true })
 
     userNotFound.value = false
   } catch (error) {
@@ -801,7 +821,8 @@ const logout = () => {
   window.location.href = '/'
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchSettings()
   checkLogin()
   loadProfile()
 })

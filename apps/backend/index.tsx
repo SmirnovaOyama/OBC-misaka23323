@@ -14,6 +14,8 @@ type CloudflareBindings = {
   CORS_ALLOWED_ORIGINS?: string
   CORS_ALLOWED_METHODS?: string
   CORS_ALLOWED_HEADERS?: string
+  ROOT_USERNAME?: string
+  ROOT_PASSWORD?: string
 }
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
@@ -65,14 +67,34 @@ api.get('/init-admin', async (c) => {
   }
 })
 
+// 获取公开系统设置
+api.get('/settings', async (c) => {
+  try {
+    const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = c.env.ADMIN_DO.get(adminId)
+    const response = await adminStub.fetch('http://internal/settings')
+    
+    if (!response.ok) {
+      return c.json({ title: 'OpenBioCard', logo: '' })
+    }
+    
+    const settings = await response.json()
+    return c.json(settings)
+  } catch (error) {
+    console.error('Get public settings error:', error)
+    return c.json({ title: 'OpenBioCard', logo: '' })
+  }
+})
+
 api.get('/', (c) => {
   return c.json({
     message: 'OpenBioCard API',
     version: '1.0.0',
     endpoints: {
-      auth: ['/signup', '/signin'],
+      auth: ['/signup/create', '/signin', '/delete'],
       user: ['/user/:username'],
-      admin: ['/admin', '/init-admin']
+      admin: ['/admin/users', '/admin/settings', '/init-admin'],
+      system: ['/settings']
     }
   })
 })
