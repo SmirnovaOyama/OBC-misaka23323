@@ -453,8 +453,9 @@ const fetchUsers = async () => {
   try {
     console.log('Fetching users for:', props.user.username)
     const data = await adminAPI.getUsers(props.token, props.user.username)
-    console.log('Received users:', data.users)
+    console.log('Received users data:', data)
     users.value = data.users || []
+    console.log('Processed users list:', users.value)
   } catch (error) {
     console.error('获取用户列表失败:', error)
   }
@@ -468,8 +469,9 @@ const createUser = async () => {
 
   creating.value = true
   try {
-    console.log('Creating user:', newUser.value.username)
-    await adminAPI.createUser(newUser.value, props.token, props.user.username)
+    console.log('Admin creating user:', newUser.value.username)
+    const result = await adminAPI.createUser(newUser.value, props.token, props.user.username)
+    console.log('Create user result:', result)
     showNotification('success', t('common.tips'), t('admin.userCreated'))
     newUser.value = { username: '', password: '', type: 'user' }
     console.log('Refreshing user list after creation')

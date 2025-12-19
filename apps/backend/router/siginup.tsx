@@ -45,15 +45,20 @@ siginup.post('/create', async (c) => {
 
     // 注册到 AdminDO 以便在管理面板中可见
     try {
+      console.log(`[Signup] Syncing user ${username} to AdminDO...`)
       const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
       const adminStub = c.env.ADMIN_DO.get(adminId)
-      await adminStub.fetch('http://internal/add-user', {
+      const adminResp = await adminStub.fetch('http://internal/add-user', {
         method: 'POST',
         body: JSON.stringify({ username, type, emailVerified: false }),
         headers: { 'Content-Type': 'application/json' }
       })
+      console.log(`[Signup] AdminDO sync status: ${adminResp.status}`)
+      if (!adminResp.ok) {
+        console.error(`[Signup] AdminDO sync failed: ${await adminResp.text()}`)
+      }
     } catch (adminError) {
-      console.error('Failed to sync user to AdminDO:', adminError)
+      console.error('[Signup] Failed to sync user to AdminDO:', adminError)
       // 即使同步失败也继续，不影响用户注册
     }
 

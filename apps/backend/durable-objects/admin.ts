@@ -16,22 +16,26 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/add-user') {
-      const { username, type, emailVerified }: { username: string, type: string, emailVerified?: boolean } = await request.json()
+      const data = await request.json()
+      console.log('[AdminDO] Adding user:', data.username, 'type:', data.type)
+      const { username, type, emailVerified }: { username: string, type: string, emailVerified?: boolean } = data
       const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
 
       // 检查用户是否已存在
       const userIndex = users.findIndex(u => u.username === username)
       if (userIndex !== -1) {
-        // 如果用户已存在，更新其类型和验证状态（可能是在重新注册或更新）
+        console.log('[AdminDO] User already exists, updating:', username)
         users[userIndex].type = type
         if (emailVerified !== undefined) {
           users[userIndex].emailVerified = emailVerified
         }
       } else {
+        console.log('[AdminDO] Adding new user to list:', username)
         users.push({ username, type, emailVerified: emailVerified || false })
       }
       
       await this.ctx.storage.put('users', users)
+      console.log('[AdminDO] Total users in list now:', users.length)
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json' }
@@ -69,9 +73,9 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/init-admin') {
-      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string}> || []
+      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
       if (users.length === 0) {
-        users.push({ username: 'admin', type: 'admin' })
+        users.push({ username: 'admin', type: 'admin', emailVerified: true })
         await this.ctx.storage.put('users', users)
       }
       return new Response(JSON.stringify({ success: true }), {

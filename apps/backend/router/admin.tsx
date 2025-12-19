@@ -37,11 +37,11 @@ admin.post('/users/list', authMiddleware, requirePermission(['admin', 'root']), 
       return c.json({ error: 'Failed to fetch users' }, 500)
     }
 
-    const { users: allUsers } = await doResponse.json() as { users: Array<{username: string, type: string}> }
-    console.log('Users from AdminDO:', allUsers.length, 'users:', allUsers.map(u => u.username))
+    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string, emailVerified?: boolean}> }
+    console.log('Users from AdminDO:', allUsers.users.length, 'users:', allUsers.users.map(u => u.username))
 
     // 过滤掉root用户
-    const users = allUsers.filter(u => u.username !== c.env.ROOT_USERNAME)
+    const users = allUsers.users.filter(u => u.username !== c.env.ROOT_USERNAME)
     console.log('Returning users list:', users.length, 'users:', users.map(u => u.username))
     return c.json({ users })
   } catch (error: any) {
@@ -64,8 +64,8 @@ admin.get('/users', authMiddleware, requirePermission(['admin', 'root']), async 
       return c.json({ error: 'Failed to fetch users' }, 500)
     }
 
-    const { users: allUsers } = await doResponse.json() as { users: Array<{username: string, type: string}> }
-    const users = allUsers.filter(u => u.username !== c.env.ROOT_USERNAME)
+    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string, emailVerified?: boolean}> }
+    const users = allUsers.users.filter(u => u.username !== c.env.ROOT_USERNAME)
     return c.json({ users })
   } catch (error: any) {
     console.error('Get users error:', error)
