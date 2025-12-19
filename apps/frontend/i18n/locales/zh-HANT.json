@@ -50,7 +50,13 @@
     "signupFailed": "註冊失敗",
     "signupError": "註冊錯誤",
     "verifySuccess": "郵箱驗證成功",
-    "verifyFailed": "驗證碼錯誤"
+    "verifyFailed": "驗證碼錯誤",
+    "forgotPassword": "忘記密碼？",
+    "resetPassword": "重置密碼",
+    "newPassword": "新密碼",
+    "enterNewPassword": "請輸入新密碼",
+    "resetSuccess": "密碼重置成功，請重新登入",
+    "resetFailed": "重置失敗，請檢查驗證碼"
   },
   "admin": {
     "panel": "管理面板",

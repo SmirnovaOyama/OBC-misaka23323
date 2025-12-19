@@ -92,6 +92,45 @@ export class UserDO extends DurableObject {
       }
     }
 
+    if (request.method === 'POST' && url.pathname === '/request-password-reset') {
+      const { email }: { email: string } = await request.json()
+      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
+      
+      if (!data || data.email !== email) {
+        return new Response(JSON.stringify({ error: 'User not found or email mismatch' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
+      data.verificationCode = resetCode // Reuse verificationCode field for simplicity
+      await this.ctx.storage.put('user', data)
+
+      return new Response(JSON.stringify({ success: true, code: resetCode }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/reset-password') {
+      const { code, newPassword }: { code: string, newPassword: string } = await request.json()
+      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
+      
+      if (data && data.verificationCode === code) {
+        data.password = newPassword
+        delete data.verificationCode
+        await this.ctx.storage.put('user', data)
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } else {
+        return new Response(JSON.stringify({ error: 'Invalid reset code' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
     if (request.method === 'POST' && url.pathname === '/delate') {
       // 删除账号时同时删除所有相关资料
       await this.ctx.storage.delete('user')

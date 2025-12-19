@@ -272,7 +272,12 @@
             <div class="admin-user-info">
               <div class="admin-user-avatar">{{ u.username.charAt(0).toUpperCase() }}</div>
               <div class="admin-user-details">
-                <h4 class="admin-user-name">{{ u.username }}</h4>
+                <h4 class="admin-user-name">
+                  {{ u.username }}
+                  <svg v-if="u.emailVerified" class="admin-user-verified-icon" fill="currentColor" viewBox="0 0 20 20" title="Email Verified">
+                    <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.633.326 1.223.777 1.674a3.066 3.066 0 010 4.338 3.066 3.066 0 00-.777 1.674 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.777-1.674 3.066 3.066 0 010-4.338 3.066 3.066 0 00.777-1.674 3.066 3.066 0 012.812-2.812zM9 11a1 1 0 112-2v3a1 1 0 11-2 0v-3zm1-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                  </svg>
+                </h4>
                 <span class="admin-user-badge" :class="{ 'root': u.type === 'root', 'admin': u.type === 'admin' }">
                   <svg class="admin-user-badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path v-if="u.type === 'root'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"></path>
@@ -1116,6 +1121,16 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.admin-user-verified-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: #3b82f6;
+  flex-shrink: 0;
 }
 
 .admin-user-badge {

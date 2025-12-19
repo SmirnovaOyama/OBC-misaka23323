@@ -20,7 +20,7 @@
       </div>
 
       <!-- 登录表单 -->
-      <div style="background: var(--color-bg-overlay); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-tertiary); padding: 2rem;">
+      <div v-if="view === 'login'" style="background: var(--color-bg-overlay); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-tertiary); padding: 2rem;">
         <form @submit.prevent="handleLogin" style="display: flex; flex-direction: column; gap: 1.5rem;">
           <div>
             <label for="username" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
@@ -40,9 +40,12 @@
           </div>
 
           <div>
-            <label for="password" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
-              {{ $t('common.password') }}
-            </label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <label for="password" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary);">
+                {{ $t('common.password') }}
+              </label>
+              <a href="#" @click.prevent="view = 'forgot'" style="font-size: 0.75rem; color: var(--color-primary); text-decoration: none;">{{ $t('auth.forgotPassword') }}</a>
+            </div>
             <input
               id="password"
               v-model="password"
@@ -76,6 +79,91 @@
           </p>
         </div>
       </div>
+
+      <!-- 忘记密码 - 输入邮箱 -->
+      <div v-else-if="view === 'forgot'" style="background: var(--color-bg-overlay); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-tertiary); padding: 2rem;">
+        <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--color-text-primary);">{{ $t('auth.resetPassword') }}</h3>
+        <form @submit.prevent="handleRequestReset" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div>
+            <label for="reset-username" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
+              {{ $t('common.username') }}
+            </label>
+            <input
+              id="reset-username"
+              v-model="username"
+              type="text"
+              :placeholder="$t('auth.enterUsername')"
+              required
+              style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border-secondary); border-radius: 0.5rem; outline: none; transition: all 0.2s; background: var(--color-bg-primary); color: var(--color-text-primary);"
+            />
+          </div>
+          <div>
+            <label for="reset-email" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
+              Email
+            </label>
+            <input
+              id="reset-email"
+              v-model="email"
+              type="email"
+              :placeholder="$t('auth.enterEmail')"
+              required
+              style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border-secondary); border-radius: 0.5rem; outline: none; transition: all 0.2s; background: var(--color-bg-primary); color: var(--color-text-primary);"
+            />
+          </div>
+          <button
+            type="submit"
+            :disabled="loading"
+            style="width: 100%; padding: 0.875rem; background: var(--color-primary); color: var(--color-text-inverse); border: none; border-radius: 0.5rem; font-size: 0.9375rem; font-weight: 600; cursor: pointer;"
+          >
+            {{ $t('auth.verify') }}
+          </button>
+        </form>
+        <div style="margin-top: 1.5rem; text-align: center;">
+          <a href="#" @click.prevent="view = 'login'" style="color: var(--color-text-tertiary); font-size: 0.875rem; text-decoration: none;">
+            ← {{ $t('common.cancel') }}
+          </a>
+        </div>
+      </div>
+
+      <!-- 忘记密码 - 输入验证码和新密码 -->
+      <div v-else-if="view === 'reset'" style="background: var(--color-bg-overlay); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-tertiary); padding: 2rem;">
+        <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--color-text-primary);">{{ $t('auth.resetPassword') }}</h3>
+        <form @submit.prevent="handleReset" style="display: flex; flex-direction: column; gap: 1.5rem;">
+          <div>
+            <label for="reset-code" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
+              {{ $t('auth.verificationCode') }}
+            </label>
+            <input
+              id="reset-code"
+              v-model="verificationCode"
+              type="text"
+              required
+              maxlength="6"
+              style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border-secondary); border-radius: 0.5rem; outline: none; transition: all 0.2s; text-align: center; font-size: 1.25rem; letter-spacing: 0.5rem; background: var(--color-bg-primary); color: var(--color-text-primary);"
+            />
+          </div>
+          <div>
+            <label for="new-password" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 0.5rem;">
+              {{ $t('auth.newPassword') }}
+            </label>
+            <input
+              id="new-password"
+              v-model="password"
+              type="password"
+              :placeholder="$t('auth.enterNewPassword')"
+              required
+              style="width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--color-border-secondary); border-radius: 0.5rem; outline: none; background: var(--color-bg-primary); color: var(--color-text-primary);"
+            />
+          </div>
+          <button
+            type="submit"
+            :disabled="loading"
+            style="width: 100%; padding: 0.875rem; background: var(--color-primary); color: var(--color-text-inverse); border: none; border-radius: 0.5rem; font-size: 0.9375rem; font-weight: 600; cursor: pointer;"
+          >
+            {{ $t('common.save') }}
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -94,10 +182,13 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['login', 'switchView'])
+const emit = defineEmits(['login', 'switchView', 'requestReset', 'resetPassword'])
 
+const view = ref('login')
 const username = ref('')
 const password = ref('')
+const email = ref('')
+const verificationCode = ref('')
 const loading = ref(false)
 
 const handleLogin = async () => {
@@ -106,6 +197,33 @@ const handleLogin = async () => {
   loading.value = true
   try {
     emit('login', username.value, password.value)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleRequestReset = async () => {
+  if (!username.value || !email.value) return
+  loading.value = true
+  try {
+    emit('requestReset', username.value, email.value, () => {
+      view.value = 'reset'
+      password.value = '' // Clear password field for new password
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleReset = async () => {
+  if (!verificationCode.value || !password.value) return
+  loading.value = true
+  try {
+    emit('resetPassword', username.value, verificationCode.value, password.value, () => {
+      view.value = 'login'
+      password.value = ''
+      verificationCode.value = ''
+    })
   } finally {
     loading.value = false
   }

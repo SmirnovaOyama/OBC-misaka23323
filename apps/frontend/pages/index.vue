@@ -1,6 +1,14 @@
 <template>
   <div class="min-h-screen">
-    <Login v-if="currentView === 'login'" :title="settings.title" :logo="settings.logo" @login="login" @switch-view="view => currentView = view" />
+    <Login 
+      v-if="currentView === 'login'" 
+      :title="settings.title" 
+      :logo="settings.logo" 
+      @login="login" 
+      @request-reset="requestPasswordReset"
+      @reset-password="resetPassword"
+      @switch-view="view => currentView = view" 
+    />
     <Signup v-else-if="currentView === 'signup'" :title="settings.title" :logo="settings.logo" @signup="signup" @verify="verifyEmail" @switch-view="view => currentView = view" />
     <AdminPanel v-else-if="currentView === 'admin'" :user="user" :token="token" @logout="logout" />
 
@@ -183,6 +191,30 @@ const verifyEmail = async (username, code) => {
     }
   } catch (error) {
     showNotification('error', t('common.tips'), error.message || t('auth.verifyFailed'))
+  }
+}
+
+const requestPasswordReset = async (username, email, callback) => {
+  try {
+    const data = await authAPI.requestPasswordReset(username, email)
+    if (data.success) {
+      showNotification('info', t('common.tips'), t('auth.emailVerificationSent'))
+      if (callback) callback()
+    }
+  } catch (error) {
+    showNotification('error', t('common.tips'), error.message || 'Request failed')
+  }
+}
+
+const resetPassword = async (username, code, newPassword, callback) => {
+  try {
+    const data = await authAPI.resetPassword(username, code, newPassword)
+    if (data.success) {
+      showNotification('success', t('common.tips'), t('auth.resetSuccess'))
+      if (callback) callback()
+    }
+  } catch (error) {
+    showNotification('error', t('common.tips'), error.message || t('auth.resetFailed'))
   }
 }
 

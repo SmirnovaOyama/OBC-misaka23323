@@ -68,6 +68,50 @@ export const authAPI = {
     return await response.json()
   },
 
+  // 请求重置密码
+  async requestPasswordReset(username, email) {
+    const response = await fetch(`${API_BASE}signup/request-password-reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, email })
+    })
+
+    if (!response.ok) {
+      try {
+        const error = await response.json()
+        throw new Error(error.error || 'Request failed')
+      } catch (parseError) {
+        throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+      }
+    }
+
+    return await response.json()
+  },
+
+  // 重置密码
+  async resetPassword(username, code, newPassword) {
+    const response = await fetch(`${API_BASE}signup/reset-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, code, newPassword })
+    })
+
+    if (!response.ok) {
+      try {
+        const error = await response.json()
+        throw new Error(error.error || 'Reset failed')
+      } catch (parseError) {
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`)
+      }
+    }
+
+    return await response.json()
+  },
+
   // 检查管理员权限
   async checkPermission(token, username) {
     const response = await fetch(`${API_BASE}admin/check-permission`, {

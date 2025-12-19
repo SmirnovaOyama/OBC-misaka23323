@@ -16,21 +16,43 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/add-user') {
-      const { username, type }: { username: string, type: string } = await request.json()
-      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string}> || []
+      const { username, type, emailVerified }: { username: string, type: string, emailVerified?: boolean } = await request.json()
+      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
 
       // 检查用户是否已存在
-      if (users.some(u => u.username === username)) {
-        return new Response(JSON.stringify({ error: 'User already exists' }), {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' }
-        })
+      const userIndex = users.findIndex(u => u.username === username)
+      if (userIndex !== -1) {
+        // 如果用户已存在，更新其类型和验证状态（可能是在重新注册或更新）
+        users[userIndex].type = type
+        if (emailVerified !== undefined) {
+          users[userIndex].emailVerified = emailVerified
+        }
+      } else {
+        users.push({ username, type, emailVerified: emailVerified || false })
       }
-
-      users.push({ username, type })
+      
       await this.ctx.storage.put('users', users)
 
       return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/update-user-status') {
+      const { username, emailVerified }: { username: string, emailVerified: boolean } = await request.json()
+      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
+      
+      const userIndex = users.findIndex(u => u.username === username)
+      if (userIndex !== -1) {
+        users[userIndex].emailVerified = emailVerified
+        await this.ctx.storage.put('users', users)
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+      
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
         headers: { 'Content-Type': 'application/json' }
       })
     }

@@ -50,7 +50,13 @@
     "signupFailed": "注册失败",
     "signupError": "注册错误",
     "verifySuccess": "邮箱验证成功",
-    "verifyFailed": "验证码错误"
+    "verifyFailed": "验证码错误",
+    "forgotPassword": "忘记密码？",
+    "resetPassword": "重置密码",
+    "newPassword": "新密码",
+    "enterNewPassword": "请输入新密码",
+    "resetSuccess": "密码重置成功，请重新登录",
+    "resetFailed": "重置失败，请检查验证码"
   },
   "admin": {
     "panel": "管理面板",

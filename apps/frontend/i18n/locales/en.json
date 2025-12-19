@@ -50,7 +50,13 @@
     "signupFailed": "Signup failed",
     "signupError": "Signup error",
     "verifySuccess": "Email verified successfully",
-    "verifyFailed": "Invalid verification code"
+    "verifyFailed": "Invalid verification code",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Password",
+    "newPassword": "New Password",
+    "enterNewPassword": "Enter new password",
+    "resetSuccess": "Password reset successfully, please sign in",
+    "resetFailed": "Reset failed, please check code"
   },
   "admin": {
     "panel": "Admin Panel",
