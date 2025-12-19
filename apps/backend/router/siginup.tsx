@@ -16,9 +16,11 @@ siginup.post('/create', async (c) => {
       return c.json({ error: '请提供有效的电子邮箱' }, 400)
     }
 
-    // 2. 在 AdminDO 中检查唯一性 (不在此处录入正式列表)
+    // 2. 在 AdminDO 中检查唯一性并锁定该邮箱 (不在此处录入正式列表)
     const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
     const adminStub = c.env.ADMIN_DO.get(adminId)
+    
+    // 我们先预占用这个邮箱/用户名
     const checkResp = await adminStub.fetch('http://internal/check-uniqueness', {
       method: 'POST',
       body: JSON.stringify({ username, email }),
@@ -27,8 +29,15 @@ siginup.post('/create', async (c) => {
 
     if (!checkResp.ok) {
       const err: any = await checkResp.json()
-      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被注册' : '用户名已存在' }, checkResp.status)
+      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被注册或正在注册中' : '用户名已存在' }, checkResp.status)
     }
+
+    // 预录入一个未激活状态，防止他人同时使用此邮箱
+    await adminStub.fetch('http://internal/add-user', {
+      method: 'POST',
+      body: JSON.stringify({ username, type, email, emailVerified: false }),
+      headers: { 'Content-Type': 'application/json' }
+    })
 
     // Generate a token for auth
     const token = crypto.randomUUID()

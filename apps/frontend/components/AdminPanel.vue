@@ -238,6 +238,18 @@
             </div>
 
             <div class="admin-form-field">
+              <label for="newEmail" class="admin-form-label">Email</label>
+              <input
+                id="newEmail"
+                v-model="newUser.email"
+                type="email"
+                :placeholder="$t('auth.enterEmail')"
+                required
+                class="admin-form-input"
+              />
+            </div>
+
+            <div class="admin-form-field">
               <label for="password" class="admin-form-label">{{ $t('common.password') }}</label>
               <input
                 id="password"
@@ -363,6 +375,7 @@ const { t } = useI18n()
 const users = ref([])
 const newUser = ref({
   username: '',
+  email: '',
   password: '',
   type: 'user'
 })

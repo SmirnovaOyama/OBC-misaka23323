@@ -140,85 +140,56 @@ admin.get('/users', authMiddleware, requirePermission(['admin', 'root']), async 
 // 创建用户（admin权限）
 admin.post('/users', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
   try {
-    console.log('Create user endpoint called')
-    // 从 context 中读取已解析的请求体
-    const body = c.var.requestBody as { username: string, token: string, newUsername: string, password: string, type: string }
-    console.log('Request body:', body)
-    const { newUsername, password, type } = body
+    const body = c.var.requestBody as { username: string, token: string, newUsername: string, password: string, type: string, email: string }
+    const { newUsername, password, type, email } = body
 
-    // 检查是否为root用户
-    if (type === 'root') {
-      console.log('Cannot create root user')
-      return c.json({ error: 'Cannot create root user' }, 403)
+    if (!email || !email.includes('@')) {
+      return c.json({ error: 'Valid email is required' }, 400)
     }
 
-    console.log('Adding user:', newUsername, 'type:', type)
+    const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = c.env.ADMIN_DO.get(adminId)
+    
+    // 1. 检查唯一性 (包括邮箱)
+    const checkResp = await adminStub.fetch('http://internal/check-uniqueness', {
+      method: 'POST',
+      body: JSON.stringify({ username: newUsername, email }),
+      headers: { 'Content-Type': 'application/json' }
+    })
 
-    // 生成token并哈希密码
+    if (!checkResp.ok) {
+      const err: any = await checkResp.json()
+      return c.json({ error: err.error === 'Email already in use' ? 'Email already in use' : 'Username already exists' }, checkResp.status)
+    }
+
+    // 2. 创建 UserDO
     const token = crypto.randomUUID()
     const hashedPassword = await hashPassword(password)
+    const id = c.env.USER_DO.idFromName(newUsername)
+    const stub = c.env.USER_DO.get(id)
+    
+    await stub.fetch('http://do/store', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        username: newUsername, 
+        password: hashedPassword, 
+        type, 
+        token,
+        email,
+        emailVerified: true 
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    })
 
-    // 1. 先将用户信息存储到 UserDO
-    try {
-      const userId = c.env.USER_DO.idFromName(newUsername)
-      const userStub = c.env.USER_DO.get(userId)
-      const userResponse = await userStub.fetch('http://do/store', {
-        method: 'POST',
-        body: JSON.stringify({ username: newUsername, password: hashedPassword, type, token }),
-        headers: { 'Content-Type': 'application/json' }
-      })
+    // 3. 同步到 AdminDO
+    await adminStub.fetch('http://internal/add-user', {
+      method: 'POST',
+      body: JSON.stringify({ username: newUsername, type, email, emailVerified: true }),
+      headers: { 'Content-Type': 'application/json' }
+    })
 
-      if (!userResponse.ok) {
-        console.error('Failed to create user in UserDO')
-        return c.json({ error: 'Failed to create user account' }, 500)
-      }
-    } catch (userError: any) {
-      console.error('UserDO error:', userError)
-      return c.json({ error: 'Failed to create user account' }, 500)
-    }
-
-    // 2. 同步到 AdminDO 持久化存储
-    try {
-      const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
-      const adminStub = c.env.ADMIN_DO.get(adminId)
-      const doResponse = await adminStub.fetch('http://internal/add-user', {
-        method: 'POST',
-        body: JSON.stringify({ username: newUsername, type }),
-        headers: { 'Content-Type': 'application/json' }
-      })
-
-      if (!doResponse.ok) {
-        const errorData = await doResponse.json() as { error?: string }
-        console.error('Failed to sync user to AdminDO:', errorData)
-
-        // 如果用户已存在，返回409
-        if (doResponse.status === 409) {
-          // 回滚：删除 UserDO
-          const userId = c.env.USER_DO.idFromName(newUsername)
-          const userStub = c.env.USER_DO.get(userId)
-          await userStub.fetch('http://do/delate', { method: 'POST' })
-          return c.json({ error: 'User already exists' }, 409)
-        }
-
-        // 其他错误，回滚 UserDO
-        const userId = c.env.USER_DO.idFromName(newUsername)
-        const userStub = c.env.USER_DO.get(userId)
-        await userStub.fetch('http://do/delate', { method: 'POST' })
-        return c.json({ error: 'Failed to persist user' }, 500)
-      }
-    } catch (doError: any) {
-      console.error('AdminDO sync error:', doError)
-      // 回滚：删除 UserDO
-      const userId = c.env.USER_DO.idFromName(newUsername)
-      const userStub = c.env.USER_DO.get(userId)
-      await userStub.fetch('http://do/delate', { method: 'POST' })
-      return c.json({ error: 'Failed to persist user' }, 500)
-    }
-
-    console.log('User created successfully:', newUsername)
     return c.json({ message: 'User created', token })
   } catch (error: any) {
-    console.error('Create user error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })

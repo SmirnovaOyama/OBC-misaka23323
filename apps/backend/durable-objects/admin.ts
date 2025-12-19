@@ -26,6 +26,7 @@ export class AdminDO extends DurableObject {
         return new Response(JSON.stringify({ error: 'Username already exists' }), { status: 409 })
       }
       
+      // 严格检查：只要邮箱被任何用户关联（无论是否验证），都视为不可用
       if (normalizedEmail && users.some(u => u.email?.toLowerCase().trim() === normalizedEmail)) {
         return new Response(JSON.stringify({ error: 'Email already in use' }), { status: 409 })
       }
@@ -41,7 +42,8 @@ export class AdminDO extends DurableObject {
       const normalizedEmail = email.toLowerCase().trim()
 
       // 再次双重检查唯一性 (排除自己)
-      if (users.some(u => u.email?.toLowerCase().trim() === normalizedEmail && u.username !== username)) {
+      const existingUserWithEmail = users.find(u => u.email?.toLowerCase().trim() === normalizedEmail)
+      if (existingUserWithEmail && existingUserWithEmail.username !== username) {
         return new Response(JSON.stringify({ error: 'Email already in use' }), { status: 409 })
       }
 
