@@ -8,11 +8,23 @@ export const siginup = new Hono<{ Bindings: CloudflareBindings }>()
 siginup.post('/create', async (c) => {
   try {
     const body = await c.req.json<CreateAccount>()
-    const username = body.username
-    const password = body.password
-    const email = body.email
+    const { username, password, email } = body
     const type = body.type || 'user'
     
+    // 1. 检查邮箱唯一性和用户名
+    const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = c.env.ADMIN_DO.get(adminId)
+    const syncResp = await adminStub.fetch('http://internal/add-user', {
+      method: 'POST',
+      body: JSON.stringify({ username, type, email, emailVerified: false }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (!syncResp.ok) {
+      const err: any = await syncResp.json()
+      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被绑定' : '该用户名已被占用' }, syncResp.status)
+    }
+
     // Generate a token for auth
     const token = crypto.randomUUID()
     
@@ -41,25 +53,6 @@ siginup.post('/create', async (c) => {
 
     if (!storeResponse.ok) {
       return c.json({ error: 'Failed to create account' }, 500)
-    }
-
-    // 注册到 AdminDO 以便在管理面板中可见
-    try {
-      console.log(`[Signup] Syncing user ${username} to AdminDO...`)
-      const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
-      const adminStub = c.env.ADMIN_DO.get(adminId)
-      const adminResp = await adminStub.fetch('http://internal/add-user', {
-        method: 'POST',
-        body: JSON.stringify({ username, type, emailVerified: false }),
-        headers: { 'Content-Type': 'application/json' }
-      })
-      console.log(`[Signup] AdminDO sync status: ${adminResp.status}`)
-      if (!adminResp.ok) {
-        console.error(`[Signup] AdminDO sync failed: ${await adminResp.text()}`)
-      }
-    } catch (adminError) {
-      console.error('[Signup] Failed to sync user to AdminDO:', adminError)
-      // 即使同步失败也继续，不影响用户注册
     }
 
     // Send verification email if email is provided

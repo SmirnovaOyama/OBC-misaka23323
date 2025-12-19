@@ -160,7 +160,24 @@ api.post('/user/:username', async (c) => {
     })
 
     if (updateResponse.ok) {
-      console.log('[API] Profile updated successfully')
+      console.log('[API] Profile updated successfully. Syncing to AdminDO cache...')
+      // 同步头像和简介到 AdminDO 缓存，以便在用户列表中显示
+      try {
+        const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
+        const adminStub = c.env.ADMIN_DO.get(adminId)
+        await adminStub.fetch('http://internal/sync-profile', {
+          method: 'POST',
+          body: JSON.stringify({ 
+            username, 
+            avatar: profileData.avatar, 
+            bio: profileData.bio 
+          }),
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } catch (adminError) {
+        console.error('[API] Failed to sync profile cache to AdminDO:', adminError)
+      }
+      
       return c.json({ success: true })
     } else {
       const errorText = await updateResponse.text()

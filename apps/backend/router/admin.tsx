@@ -4,6 +4,70 @@ import { hashPassword } from '../utils/password'
 
 export const admin = new Hono<{ Bindings: CloudflareBindings & { ADMIN_DO: DurableObjectNamespace }, Variables: AuthVariables }>()
 
+admin.post('/users/password', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
+  try {
+    const { targetUsername, newPassword } = await c.req.json()
+    const hashedPassword = await hashPassword(newPassword)
+    const id = c.env.USER_DO.idFromName(targetUsername)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 获取当前数据并更新密码
+    const getResp = await stub.fetch('http://internal/get')
+    if (!getResp.ok) return c.json({ error: 'User not found' }, 404)
+    const userData: any = await getResp.json()
+    
+    const updateResp = await stub.fetch('http://do/store', {
+      method: 'POST',
+      body: JSON.stringify({ ...userData, password: hashedPassword }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    return updateResp.ok ? c.json({ success: true }) : c.json({ error: 'Update failed' }, 500)
+  } catch (error) {
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+admin.post('/users/sync-existing', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
+  try {
+    const { targetUsername } = await c.req.json()
+    const id = c.env.USER_DO.idFromName(targetUsername)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 1. 尝试从 UserDO 获取数据
+    const getResp = await stub.fetch('http://internal/get')
+    if (!getResp.ok) return c.json({ error: 'User not found in DO' }, 404)
+    const userData: any = await getResp.json()
+    
+    // 2. 获取资料详情（头像和简介）
+    const profileResp = await stub.fetch('http://internal/get-profile')
+    let profileData: any = {}
+    if (profileResp.ok) {
+      profileData = await profileResp.json()
+    }
+
+    // 3. 强制同步到 AdminDO
+    const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = c.env.ADMIN_DO.get(adminId)
+    await adminStub.fetch('http://internal/add-user', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        username: targetUsername, 
+        type: userData.type || 'user',
+        email: userData.email,
+        emailVerified: userData.emailVerified || false,
+        avatar: profileData.avatar,
+        bio: profileData.bio
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    return c.json({ success: true })
+  } catch (error) {
+    return c.json({ error: 'Internal error' }, 500)
+  }
+})
+
 // 检查权限（用于前端权限验证）
 admin.post('/check-permission', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
   // 权限检查由中间件完成，这里只需返回成功

@@ -17,26 +17,51 @@ export class AdminDO extends DurableObject {
 
     if (request.method === 'POST' && url.pathname === '/add-user') {
       const data = await request.json()
-      console.log('[AdminDO] Adding user:', data.username, 'type:', data.type)
-      const { username, type, emailVerified }: { username: string, type: string, emailVerified?: boolean } = data
-      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
+      const { username, type, email, emailVerified, avatar, bio }: { username: string, type: string, email?: string, emailVerified?: boolean, avatar?: string, bio?: string } = data
+      const users = (await this.ctx.storage.get('users')) as Array<any> || []
 
-      // 检查用户是否已存在
+      // 1. 检查邮箱唯一性
+      if (email && users.some(u => u.email === email && u.username !== username)) {
+        return new Response(JSON.stringify({ error: 'Email already in use' }), {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+
+      // 2. 检查用户名唯一性 (仅针对新创建)
       const userIndex = users.findIndex(u => u.username === username)
+      
+      const userData = { 
+        username, 
+        type, 
+        email: email || (userIndex !== -1 ? users[userIndex].email : undefined),
+        emailVerified: emailVerified !== undefined ? emailVerified : (userIndex !== -1 ? users[userIndex].emailVerified : false),
+        avatar: avatar || (userIndex !== -1 ? users[userIndex].avatar : ''),
+        bio: bio || (userIndex !== -1 ? users[userIndex].bio : '')
+      }
+
       if (userIndex !== -1) {
-        console.log('[AdminDO] User already exists, updating:', username)
-        users[userIndex].type = type
-        if (emailVerified !== undefined) {
-          users[userIndex].emailVerified = emailVerified
-        }
+        users[userIndex] = userData
       } else {
-        console.log('[AdminDO] Adding new user to list:', username)
-        users.push({ username, type, emailVerified: emailVerified || false })
+        users.push(userData)
       }
       
       await this.ctx.storage.put('users', users)
-      console.log('[AdminDO] Total users in list now:', users.length)
 
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/sync-profile') {
+      const { username, avatar, bio } = await request.json()
+      const users = (await this.ctx.storage.get('users')) as Array<any> || []
+      const index = users.findIndex(u => u.username === username)
+      if (index !== -1) {
+        users[index].avatar = avatar
+        users[index].bio = bio
+        await this.ctx.storage.put('users', users)
+      }
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json' }
       })

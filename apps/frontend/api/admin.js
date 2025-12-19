@@ -77,6 +77,44 @@ export const adminAPI = {
     return await response.json()
   },
 
+  // 修改用户密码
+  async changePassword(targetUsername, newPassword, token, adminUsername) {
+    const response = await fetch(`${API_BASE}admin/users/password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ username: adminUsername, token, targetUsername, newPassword })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to change password')
+    }
+
+    return await response.json()
+  },
+
+  // 同步老账号
+  async syncExistingUser(targetUsername, token, adminUsername) {
+    const response = await fetch(`${API_BASE}admin/users/sync-existing`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ username: adminUsername, token, targetUsername })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to sync user')
+    }
+
+    return await response.json()
+  },
+
   // 获取系统设置（管理员专用，包含私有或完整数据）
   async getSettings(token, username) {
     const response = await fetch(`${API_BASE}admin/settings`, {

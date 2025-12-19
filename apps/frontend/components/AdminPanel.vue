@@ -178,6 +178,28 @@
         </form>
       </div>
 
+      <!-- 找回老账号 -->
+      <div class="admin-card recovery-card">
+        <h3 class="admin-card-title">
+          <svg class="admin-card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.001 0 01-15.357-2m15.357 2H15"></path>
+          </svg>
+          {{ $t('admin.syncOldUser') }}
+        </h3>
+        <div class="sync-form">
+          <input
+            v-model="syncUsername"
+            type="text"
+            :placeholder="$t('admin.syncUserPlaceholder')"
+            class="admin-form-input"
+          />
+          <button @click="syncUser" :disabled="syncing" class="admin-form-submit sync-btn">
+            <span v-if="!syncing">{{ $t('common.add') }}</span>
+            <div v-else class="spinner"></div>
+          </button>
+        </div>
+      </div>
+
       <!-- 用户统计 -->
       <div class="admin-header">
         <div class="admin-header-text">
@@ -269,38 +291,38 @@
         <!-- 用户网格 -->
         <div v-else class="admin-users-grid">
           <div v-for="u in users" :key="u.username" class="admin-user-card">
-            <div class="admin-user-info">
-              <div class="admin-user-avatar">{{ u.username.charAt(0).toUpperCase() }}</div>
-              <div class="admin-user-details">
-                <h4 class="admin-user-name">
+            <div class="admin-user-info" style="display: flex; gap: 1rem; align-items: flex-start;">
+              <div class="admin-user-avatar" style="width: 3.5rem; height: 3.5rem; background: var(--color-bg-tertiary); border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; border: 1px solid var(--color-border-secondary);">
+                <img v-if="u.avatar && u.avatar.startsWith('data:image')" :src="u.avatar" style="width: 100%; height: 100%; object-fit: cover;" />
+                <span v-else style="font-size: 1.25rem; font-weight: bold; color: var(--color-text-secondary);">{{ u.username.charAt(0).toUpperCase() }}</span>
+              </div>
+              <div class="admin-user-details" style="flex: 1; min-width: 0;">
+                <h4 class="admin-user-name" style="margin: 0 0 0.25rem; font-size: 1.125rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
                   {{ u.username }}
-                  <svg v-if="u.emailVerified" class="admin-user-verified-icon" fill="currentColor" viewBox="0 0 20 20" title="Email Verified">
+                  <svg v-if="u.emailVerified" style="width: 1rem; height: 1rem; color: #3b82f6;" fill="currentColor" viewBox="0 0 20 20">
                     <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.633.326 1.223.777 1.674a3.066 3.066 0 010 4.338 3.066 3.066 0 00-.777 1.674 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.777-1.674 3.066 3.066 0 010-4.338 3.066 3.066 0 00.777-1.674 3.066 3.066 0 012.812-2.812zM9 11a1 1 0 112-2v3a1 1 0 11-2 0v-3zm1-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
                   </svg>
                 </h4>
-                <span class="admin-user-badge" :class="{ 'root': u.type === 'root', 'admin': u.type === 'admin' }">
-                  <svg class="admin-user-badge-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path v-if="u.type === 'root'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" fill="currentColor"></path>
-                    <path v-else-if="u.type === 'admin'" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM12 16V12M12 8H12.01"></path>
-                    <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z"></path>
-                  </svg>
-                  {{ u.type === 'root' ? 'ROOT' : u.type === 'admin' ? $t('admin.systemAdmin') : $t('admin.regularUser') }}
-                </span>
+                <p v-if="u.email" style="font-size: 0.75rem; color: var(--color-text-tertiary); margin: 0 0 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.email }}</p>
+                <p v-if="u.bio" style="font-size: 0.8125rem; color: var(--color-text-secondary); margin: 0 0 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">{{ u.bio }}</p>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                  <span class="admin-user-badge" :class="{ 'root': u.type === 'root', 'admin': u.type === 'admin' }">
+                    {{ u.type === 'root' ? 'ROOT' : u.type === 'admin' ? $t('admin.systemAdmin') : $t('admin.regularUser') }}
+                  </span>
+                </div>
               </div>
             </div>
 
             <!-- 操作按钮 -->
-            <button v-if="u.username !== user.username && u.type !== 'root'" @click="deleteUser(u.username)" class="admin-user-delete">
-              <svg class="admin-user-delete-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"></path>
-              </svg>
-              {{ $t('admin.deleteUser') }}
-            </button>
-            <div v-else class="admin-user-current">
-              <svg class="admin-user-current-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM9 12L11 14L15 10"></path>
-              </svg>
-              {{ u.username === user.username ? $t('admin.currentUser') : $t('admin.systemAdmin') }}
+            <div class="admin-user-actions" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-border-tertiary); display: flex; gap: 0.75rem;">
+              <button @click="promptChangePassword(u.username)" style="flex: 1; padding: 0.5rem; font-size: 0.8125rem; border-radius: 0.375rem; border: 1px solid var(--color-border-secondary); background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.2s;">
+                {{ $t('admin.changePassword') }}
+              </button>
+              <button v-if="u.username !== user.username && u.type !== 'root'" @click="deleteUser(u.username)" style="padding: 0.5rem; color: var(--color-danger); background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;" :title="$t('common.delete')">
+                <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
@@ -350,6 +372,43 @@ const settings = ref({
   title: 'OpenBioCard',
   logo: ''
 })
+
+const syncUsername = ref('')
+const syncing = ref(false)
+
+const syncUser = async () => {
+  if (!syncUsername.value || !props.token) return
+  syncing.value = true
+  try {
+    await adminAPI.syncExistingUser(syncUsername.value, props.token, props.user.username)
+    showNotification('success', t('common.tips'), t('admin.syncSuccess'))
+    syncUsername.value = ''
+    await fetchUsers()
+  } catch (error) {
+    showNotification('error', t('common.tips'), t('admin.syncFailed'))
+  } finally {
+    syncing.value = false
+  }
+}
+
+const promptChangePassword = async (targetUsername) => {
+  const newPassword = window.prompt(t('admin.newPasswordPlaceholder'))
+  if (!newPassword || newPassword.length < 6) {
+    if (newPassword) alert('密码至少需要6位')
+    return
+  }
+  
+  try {
+    await adminAPI.changePassword(targetUsername, newPassword, props.token, props.user.username)
+    showNotification('success', t('common.tips'), t('admin.resetSuccess'))
+  } catch (error) {
+    showNotification('error', t('common.tips'), error.message)
+  }
+}
+
+const isBase64Image = (str) => {
+  return str && str.startsWith('data:image/') && str.includes('base64,')
+}
 
 // 同步网站标题和 Logo 到 head
 useHead({
