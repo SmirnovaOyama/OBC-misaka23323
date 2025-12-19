@@ -81,7 +81,12 @@ export class UserDO extends DurableObject {
         data.emailVerified = true
         delete data.verificationCode
         await this.ctx.storage.put('user', data)
-        return new Response(JSON.stringify({ success: true }), {
+        return new Response(JSON.stringify({ 
+          success: true, 
+          username: data.username, 
+          email: data.email, 
+          type: data.type 
+        }), {
           headers: { 'Content-Type': 'application/json' }
         })
       } else {

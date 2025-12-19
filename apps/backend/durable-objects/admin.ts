@@ -15,27 +15,42 @@ export class AdminDO extends DurableObject {
       })
     }
 
+    // 检查唯一性 (用户名或邮箱)
+    if (request.method === 'POST' && url.pathname === '/check-uniqueness') {
+      const { username, email } = await request.json()
+      const users = (await this.ctx.storage.get('users')) as Array<any> || []
+      
+      const normalizedEmail = email?.toLowerCase().trim()
+      
+      if (users.some(u => u.username === username)) {
+        return new Response(JSON.stringify({ error: 'Username already exists' }), { status: 409 })
+      }
+      
+      if (normalizedEmail && users.some(u => u.email?.toLowerCase().trim() === normalizedEmail)) {
+        return new Response(JSON.stringify({ error: 'Email already in use' }), { status: 409 })
+      }
+      
+      return new Response(JSON.stringify({ success: true }))
+    }
+
     if (request.method === 'POST' && url.pathname === '/add-user') {
       const data = await request.json()
-      const { username, type, email, emailVerified, avatar, bio }: { username: string, type: string, email?: string, emailVerified?: boolean, avatar?: string, bio?: string } = data
+      const { username, type, email, emailVerified, avatar, bio }: { username: string, type: string, email: string, emailVerified?: boolean, avatar?: string, bio?: string } = data
       const users = (await this.ctx.storage.get('users')) as Array<any> || []
 
-      // 1. 检查邮箱唯一性
-      if (email && users.some(u => u.email === email && u.username !== username)) {
-        return new Response(JSON.stringify({ error: 'Email already in use' }), {
-          status: 409,
-          headers: { 'Content-Type': 'application/json' }
-        })
+      const normalizedEmail = email.toLowerCase().trim()
+
+      // 再次双重检查唯一性 (排除自己)
+      if (users.some(u => u.email?.toLowerCase().trim() === normalizedEmail && u.username !== username)) {
+        return new Response(JSON.stringify({ error: 'Email already in use' }), { status: 409 })
       }
 
-      // 2. 检查用户名唯一性 (仅针对新创建)
       const userIndex = users.findIndex(u => u.username === username)
-      
       const userData = { 
         username, 
         type, 
-        email: email || (userIndex !== -1 ? users[userIndex].email : undefined),
-        emailVerified: emailVerified !== undefined ? emailVerified : (userIndex !== -1 ? users[userIndex].emailVerified : false),
+        email: normalizedEmail,
+        emailVerified: emailVerified ?? false,
         avatar: avatar || (userIndex !== -1 ? users[userIndex].avatar : ''),
         bio: bio || (userIndex !== -1 ? users[userIndex].bio : '')
       }
@@ -47,10 +62,7 @@ export class AdminDO extends DurableObject {
       }
       
       await this.ctx.storage.put('users', users)
-
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { 'Content-Type': 'application/json' }
-      })
+      return new Response(JSON.stringify({ success: true }))
     }
 
     if (request.method === 'POST' && url.pathname === '/sync-profile') {

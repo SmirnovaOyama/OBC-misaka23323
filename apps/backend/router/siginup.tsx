@@ -11,18 +11,23 @@ siginup.post('/create', async (c) => {
     const { username, password, email } = body
     const type = body.type || 'user'
     
-    // 1. 检查邮箱唯一性和用户名
+    // 1. 强制要求邮箱
+    if (!email || !email.includes('@')) {
+      return c.json({ error: '请提供有效的电子邮箱' }, 400)
+    }
+
+    // 2. 在 AdminDO 中检查唯一性 (不在此处录入正式列表)
     const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
     const adminStub = c.env.ADMIN_DO.get(adminId)
-    const syncResp = await adminStub.fetch('http://internal/add-user', {
+    const checkResp = await adminStub.fetch('http://internal/check-uniqueness', {
       method: 'POST',
-      body: JSON.stringify({ username, type, email, emailVerified: false }),
+      body: JSON.stringify({ username, email }),
       headers: { 'Content-Type': 'application/json' }
     })
 
-    if (!syncResp.ok) {
-      const err: any = await syncResp.json()
-      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被绑定' : '该用户名已被占用' }, syncResp.status)
+    if (!checkResp.ok) {
+      const err: any = await checkResp.json()
+      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被注册' : '用户名已存在' }, checkResp.status)
     }
 
     // Generate a token for auth
@@ -34,7 +39,7 @@ siginup.post('/create', async (c) => {
     // Hash the password
     const hashedPassword = await hashPassword(password)
 
-    // Store in Durable Object
+    // Store in Durable Object (此时 emailVerified 为 false)
     const id = c.env.USER_DO.idFromName(username)
     const stub = c.env.USER_DO.get(id)
     const storeResponse = await stub.fetch('http://do/store', {
@@ -52,22 +57,19 @@ siginup.post('/create', async (c) => {
     })
 
     if (!storeResponse.ok) {
-      return c.json({ error: 'Failed to create account' }, 500)
+      return c.json({ error: '创建账号失败' }, 500)
     }
 
-    // Send verification email if email is provided
-    if (email) {
-      await sendVerificationEmail(email, verificationCode, username, c.env.RESEND_API_KEY)
-    }
+    // Send verification email
+    await sendVerificationEmail(email, verificationCode, username, c.env.RESEND_API_KEY)
 
-    return c.json({ token, needsVerification: !!email })
+    return c.json({ token, needsVerification: true })
   } catch (error: any) {
       console.error('Signup error:', error)
-      // Handle Durable Object reset
       if (error.message && error.message.includes('durableObjectReset')) {
-          return c.json({ error: 'Service temporarily unavailable, please try again' }, 503)
+          return c.json({ error: '服务繁忙，请稍后再试' }, 503)
       }
-      return c.json({ error: 'Internal server error' }, 500)
+      return c.json({ error: '服务器内部错误' }, 500)
   }
 })
 
@@ -85,25 +87,33 @@ siginup.post('/verify-email', async (c) => {
 
     if (!response.ok) {
       const errorData: any = await response.json()
-      return c.json({ error: errorData.error || 'Verification failed' }, response.status)
+      return c.json({ error: errorData.error || '验证失败' }, response.status)
     }
 
-    // 同步验证状态到 AdminDO
+    const userData: any = await response.json()
+
+    // 2. 只有在此处验证码校验成功后，才录入 AdminDO 列表
     try {
       const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
       const adminStub = c.env.ADMIN_DO.get(adminId)
-      await adminStub.fetch('http://internal/update-user-status', {
+      await adminStub.fetch('http://internal/add-user', {
         method: 'POST',
-        body: JSON.stringify({ username, emailVerified: true }),
+        body: JSON.stringify({ 
+          username, 
+          type: userData.type || 'user', 
+          email: userData.email,
+          emailVerified: true 
+        }),
         headers: { 'Content-Type': 'application/json' }
       })
     } catch (adminError) {
-      console.error('Failed to sync verification status to AdminDO:', adminError)
+      console.error('Failed to sync to AdminDO after verification:', adminError)
     }
 
     return c.json({ success: true })
   } catch (error) {
-    return c.json({ error: 'Internal server error' }, 500)
+    console.error('Verify error:', error)
+    return c.json({ error: '服务器内部错误' }, 500)
   }
 })
 
