@@ -16,6 +16,7 @@ type CloudflareBindings = {
   CORS_ALLOWED_HEADERS?: string
   ROOT_USERNAME?: string
   ROOT_PASSWORD?: string
+  RESEND_API_KEY?: string
 }
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()

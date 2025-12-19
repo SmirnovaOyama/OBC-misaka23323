@@ -3,4 +3,7 @@ export interface CreateAccount {
     password: string
     token: string
     type: string
+    email?: string
+    emailVerified?: boolean
+    verificationCode?: string
 }

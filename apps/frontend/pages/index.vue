@@ -1,6 +1,7 @@
 <template>
   <div class="min-h-screen">
-    <Login v-if="currentView === 'login'" :title="settings.title" :logo="settings.logo" @login="login" />
+    <Login v-if="currentView === 'login'" :title="settings.title" :logo="settings.logo" @login="login" @switch-view="view => currentView = view" />
+    <Signup v-else-if="currentView === 'signup'" :title="settings.title" :logo="settings.logo" @signup="signup" @verify="verifyEmail" @switch-view="view => currentView = view" />
     <AdminPanel v-else-if="currentView === 'admin'" :user="user" :token="token" @logout="logout" />
 
     <!-- 通知弹窗 -->
@@ -19,6 +20,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useHead } from '@vueuse/head'
 import Login from '../components/Login.vue'
+import Signup from '../components/Signup.vue'
 import AdminPanel from '../components/AdminPanel.vue'
 import NotificationModal from '../components/NotificationModal.vue'
 import { authAPI, userAPI } from '../api/index.js'
@@ -151,6 +153,39 @@ const login = async (username, password) => {
   }
 }
 
+const signup = async (userData, callback) => {
+  try {
+    const data = await authAPI.signup(userData)
+    if (data.token) {
+      if (data.needsVerification) {
+        showNotification('info', t('common.tips'), t('auth.emailVerificationSent'))
+        if (callback) callback(true)
+      } else {
+        showNotification('success', t('common.tips'), t('auth.signupSuccess'))
+        // 注册后自动登录
+        await login(userData.username, userData.password)
+      }
+    } else {
+      showNotification('error', t('common.tips'), t('auth.signupFailed'))
+    }
+  } catch (error) {
+    showNotification('error', t('common.tips'), error.message || t('auth.signupError'))
+  }
+}
+
+const verifyEmail = async (username, code) => {
+  try {
+    const data = await authAPI.verifyEmail(username, code)
+    if (data.success) {
+      showNotification('success', t('common.tips'), t('auth.verifySuccess'))
+      // 验证成功后跳转回登录页或自动登录（如果已经有了token）
+      currentView.value = 'login'
+    }
+  } catch (error) {
+    showNotification('error', t('common.tips'), error.message || t('auth.verifyFailed'))
+  }
+}
+
 const logout = () => {
   // 清除cookies
   deleteCookie('auth_token')
@@ -184,5 +219,14 @@ const showNotification = (type, title, message) => {
 onMounted(async () => {
   await fetchSettings()
   await checkLogin()
+  
+  // 根据路由设置初始视图
+  const path = window.location.pathname
+  if (path === '/signup') {
+    currentView.value = 'signup'
+  } else if (path === '/admin') {
+    // 如果已经登录且是 admin，checkLogin 会处理
+    // 如果没登录，默认就是 login 视图
+  }
 })
 </script>

@@ -72,6 +72,7 @@
         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border-tertiary); text-align: center;">
           <p style="font-size: 0.875rem; color: var(--color-text-tertiary); margin: 0;">
             {{ $t('auth.firstTimeUser') }}
+            <a href="#" @click.prevent="$emit('switchView', 'signup')" style="color: var(--color-primary); font-weight: 600; text-decoration: none; margin-left: 0.5rem;">{{ $t('auth.signUp') }}</a>
           </p>
         </div>
       </div>
@@ -93,7 +94,7 @@ defineProps({
   }
 })
 
-const emit = defineEmits(['login'])
+const emit = defineEmits(['login', 'switchView'])
 
 const username = ref('')
 const password = ref('')

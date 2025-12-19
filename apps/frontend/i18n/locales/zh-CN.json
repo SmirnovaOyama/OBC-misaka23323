@@ -31,12 +31,26 @@
   "auth": {
     "signIn": "登录",
     "signInToAccount": "登录到您的账户",
+    "signUp": "注册",
+    "signUpToAccount": "注册新账户",
     "signOut": "退出登录",
     "enterUsername": "请输入用户名",
     "enterPassword": "请输入密码",
-    "firstTimeUser": "首次使用？请联系系统管理员创建账号",
+    "enterEmail": "请输入电子邮箱",
+    "verificationCode": "验证码",
+    "enterVerificationCode": "请输入验证码",
+    "verifyEmail": "验证邮箱",
+    "emailVerificationSent": "验证码已发送至您的邮箱",
+    "verify": "验证",
+    "firstTimeUser": "首次使用？",
+    "hasAccount": "已有账号？",
     "loginFailed": "登录失败",
-    "loginError": "登录错误"
+    "loginError": "登录错误",
+    "signupSuccess": "注册成功",
+    "signupFailed": "注册失败",
+    "signupError": "注册错误",
+    "verifySuccess": "邮箱验证成功",
+    "verifyFailed": "验证码错误"
   },
   "admin": {
     "panel": "管理面板",

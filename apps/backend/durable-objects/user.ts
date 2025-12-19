@@ -58,11 +58,35 @@ export class UserDO extends DurableObject {
       const { token }: { token: string } = await request.json()
       const data = await this.ctx.storage.get('user') as CreateAccount | undefined
       if (data && data.token === token) {
-        return new Response(JSON.stringify({ valid: true, type: data.type, username: data.username }), {
+        return new Response(JSON.stringify({ 
+          valid: true, 
+          type: data.type, 
+          username: data.username,
+          email: data.email,
+          emailVerified: data.emailVerified
+        }), {
           headers: { 'Content-Type': 'application/json' }
         })
       } else {
         return new Response(JSON.stringify({ valid: false }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    if (request.method === 'POST' && url.pathname === '/verify-email') {
+      const { code }: { code: string } = await request.json()
+      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
+      if (data && data.verificationCode === code) {
+        data.emailVerified = true
+        delete data.verificationCode
+        await this.ctx.storage.put('user', data)
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } else {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid verification code' }), {
+          status: 400,
           headers: { 'Content-Type': 'application/json' }
         })
       }
@@ -83,6 +107,8 @@ export class UserDO extends DurableObject {
         const profile = (await this.ctx.storage.get('profile') || {}) as Profile
         return new Response(JSON.stringify({
           username: data.username,
+          email: data.email,
+          emailVerified: data.emailVerified,
           name: '',
           avatar: '',
           bio: '',

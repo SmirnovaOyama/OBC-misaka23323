@@ -42,7 +42,12 @@
         </div>
         <div style="flex: 1; padding-top: 1rem;">
           <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
-            <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--color-text-primary);">{{ profileData.name || profileData.username }}</h2>
+            <h2 style="font-size: 1.875rem; font-weight: bold; color: var(--color-text-primary); display: flex; align-items: center; gap: 0.5rem;">
+              {{ profileData.name || profileData.username }}
+              <svg v-if="profileData.emailVerified" style="width: 1.5rem; height: 1.5rem; color: #3b82f6;" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.633.326 1.223.777 1.674a3.066 3.066 0 010 4.338 3.066 3.066 0 00-.777 1.674 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.777-1.674 3.066 3.066 0 010-4.338 3.066 3.066 0 00.777-1.674 3.066 3.066 0 012.812-2.812zM9 11a1 1 0 112-2v3a1 1 0 11-2 0v-3zm1-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+              </svg>
+            </h2>
             
             <!-- Share Button -->
             <button 

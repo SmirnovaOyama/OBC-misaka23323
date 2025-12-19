@@ -31,12 +31,26 @@
   "auth": {
     "signIn": "Sign in",
     "signInToAccount": "Sign in to your account",
+    "signUp": "Sign up",
+    "signUpToAccount": "Create a new account",
     "signOut": "Sign out",
     "enterUsername": "Enter username",
     "enterPassword": "Enter password",
-    "firstTimeUser": "First time user? Please contact system administrator to create an account",
+    "enterEmail": "Enter email address",
+    "verificationCode": "Verification Code",
+    "enterVerificationCode": "Enter verification code",
+    "verifyEmail": "Verify Email",
+    "emailVerificationSent": "A verification code has been sent to your email",
+    "verify": "Verify",
+    "firstTimeUser": "First time user?",
+    "hasAccount": "Already have an account?",
     "loginFailed": "Login failed",
-    "loginError": "Login error"
+    "loginError": "Login error",
+    "signupSuccess": "Account created successfully",
+    "signupFailed": "Signup failed",
+    "signupError": "Signup error",
+    "verifySuccess": "Email verified successfully",
+    "verifyFailed": "Invalid verification code"
   },
   "admin": {
     "panel": "Admin Panel",

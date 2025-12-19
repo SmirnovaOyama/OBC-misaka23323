@@ -31,12 +31,26 @@
   "auth": {
     "signIn": "登入",
     "signInToAccount": "登入到您的帳戶",
+    "signUp": "註冊",
+    "signUpToAccount": "註冊新帳戶",
     "signOut": "登出",
     "enterUsername": "請輸入使用者名稱",
     "enterPassword": "請輸入密碼",
-    "firstTimeUser": "首次使用？請聯絡系統管理員建立帳號",
+    "enterEmail": "請輸入電子郵件",
+    "verificationCode": "驗證碼",
+    "enterVerificationCode": "請輸入驗證碼",
+    "verifyEmail": "驗證郵件",
+    "emailVerificationSent": "驗證碼已發送至您的郵箱",
+    "verify": "驗證",
+    "firstTimeUser": "首次使用？",
+    "hasAccount": "已有帳號？",
     "loginFailed": "登入失敗",
-    "loginError": "登入錯誤"
+    "loginError": "登入錯誤",
+    "signupSuccess": "註冊成功",
+    "signupFailed": "註冊失敗",
+    "signupError": "註冊錯誤",
+    "verifySuccess": "郵箱驗證成功",
+    "verifyFailed": "驗證碼錯誤"
   },
   "admin": {
     "panel": "管理面板",
