@@ -17,7 +17,7 @@ export class AdminDO extends DurableObject {
 
     // 检查唯一性 (用户名或邮箱)
     if (request.method === 'POST' && url.pathname === '/check-uniqueness') {
-      const { username, email } = await request.json()
+      const { username, email } = await request.json() as { username?: string, email?: string }
       const users = (await this.ctx.storage.get('users')) as Array<any> || []
       
       const normalizedEmail = email?.toLowerCase().trim()
@@ -35,8 +35,7 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/add-user') {
-      const data = await request.json()
-      const { username, type, email, emailVerified, avatar, bio }: { username: string, type: string, email: string, emailVerified?: boolean, avatar?: string, bio?: string } = data
+      const { username, type, email, emailVerified, avatar, bio } = await request.json() as { username: string, type: string, email: string, emailVerified?: boolean, avatar?: string, bio?: string }
       const users = (await this.ctx.storage.get('users')) as Array<any> || []
 
       const normalizedEmail = email.toLowerCase().trim()

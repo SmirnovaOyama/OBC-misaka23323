@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { CreateAccount } from '../types/siginup'
 import { hashPassword } from '../utils/password'
 import { sendVerificationEmail } from '../utils/email'
@@ -29,7 +30,7 @@ siginup.post('/create', async (c) => {
 
     if (!checkResp.ok) {
       const err: any = await checkResp.json()
-      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被注册或正在注册中' : '用户名已存在' }, checkResp.status)
+      return c.json({ error: err.error === 'Email already in use' ? '该邮箱已被注册或正在注册中' : '用户名已存在' }, checkResp.status as ContentfulStatusCode)
     }
 
     // 预录入一个未激活状态，防止他人同时使用此邮箱
@@ -96,7 +97,7 @@ siginup.post('/verify-email', async (c) => {
 
     if (!response.ok) {
       const errorData: any = await response.json()
-      return c.json({ error: errorData.error || '验证失败' }, response.status)
+      return c.json({ error: errorData.error || '验证失败' }, response.status as ContentfulStatusCode)
     }
 
     const userData: any = await response.json()
@@ -140,7 +141,7 @@ siginup.post('/request-password-reset', async (c) => {
 
     if (!response.ok) {
       const errorData: any = await response.json()
-      return c.json({ error: errorData.error || 'User not found or email mismatch' }, response.status)
+      return c.json({ error: errorData.error || 'User not found or email mismatch' }, response.status as ContentfulStatusCode)
     }
 
     const { code } = await response.json() as { code: string }
@@ -170,7 +171,7 @@ siginup.post('/reset-password', async (c) => {
 
     if (!response.ok) {
       const errorData: any = await response.json()
-      return c.json({ error: errorData.error || 'Reset failed' }, response.status)
+      return c.json({ error: errorData.error || 'Reset failed' }, response.status as ContentfulStatusCode)
     }
 
     return c.json({ success: true })

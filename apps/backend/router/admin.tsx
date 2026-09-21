@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { authMiddleware, requirePermission, AuthVariables } from '../middleware/auth'
 import { hashPassword } from '../utils/password'
 
@@ -135,7 +136,7 @@ admin.post('/users', authMiddleware, requirePermission(['admin', 'root']), async
 
     if (!checkResp.ok) {
       const err: any = await checkResp.json()
-      return c.json({ error: err.error === 'Email already in use' ? 'Email already in use' : 'Username already exists' }, checkResp.status)
+      return c.json({ error: err.error === 'Email already in use' ? 'Email already in use' : 'Username already exists' }, checkResp.status as ContentfulStatusCode)
     }
 
     // 2. 创建 UserDO

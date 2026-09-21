@@ -7,19 +7,6 @@ import { UserDO } from './durable-objects/user'
 import { AdminDO } from './durable-objects/admin'
 import { hashPassword } from './utils/password'
 
-type CloudflareBindings = {
-  USER_DO: DurableObjectNamespace
-  ADMIN_DO: DurableObjectNamespace
-  ASSETS: Fetcher
-  ENVIRONMENT?: string
-  CORS_ALLOWED_ORIGINS?: string
-  CORS_ALLOWED_METHODS?: string
-  CORS_ALLOWED_HEADERS?: string
-  ROOT_USERNAME?: string
-  ROOT_PASSWORD?: string
-  RESEND_API_KEY?: string
-}
-
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
 // CORS middleware
