@@ -4,6 +4,4 @@ export interface CreateAccount {
     token: string
     type: string
     email?: string
-    emailVerified?: boolean
-    verificationCode?: string
 }

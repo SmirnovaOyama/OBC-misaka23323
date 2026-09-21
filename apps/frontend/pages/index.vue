@@ -5,11 +5,9 @@
       :title="settings.title" 
       :logo="settings.logo" 
       @login="login" 
-      @request-reset="requestPasswordReset"
-      @reset-password="resetPassword"
       @switch-view="view => currentView = view" 
     />
-    <Signup v-else-if="currentView === 'signup'" :title="settings.title" :logo="settings.logo" @signup="signup" @verify="verifyEmail" @switch-view="view => currentView = view" />
+    <Signup v-else-if="currentView === 'signup'" :title="settings.title" :logo="settings.logo" @signup="signup" @switch-view="view => currentView = view" />
     <AdminPanel v-else-if="currentView === 'admin'" :user="user" :token="token" @logout="logout" />
 
     <!-- 通知弹窗 -->
@@ -163,60 +161,18 @@ const login = async (username, password) => {
   }
 }
 
-const signup = async (userData, callback) => {
+const signup = async (userData) => {
   try {
     const data = await authAPI.signup(userData)
     if (data.token) {
-      if (data.needsVerification) {
-        showNotification('info', t('common.tips'), t('auth.emailVerificationSent'))
-        if (callback) callback(true)
-      } else {
-        showNotification('success', t('common.tips'), t('auth.signupSuccess'))
-        // 注册后自动登录
-        await login(userData.username, userData.password)
-      }
+      showNotification('success', t('common.tips'), t('auth.signupSuccess'))
+      // 注册后自动登录
+      await login(userData.username, userData.password)
     } else {
       showNotification('error', t('common.tips'), t('auth.signupFailed'))
     }
   } catch (error) {
     showNotification('error', t('common.tips'), error.message || t('auth.signupError'))
-  }
-}
-
-const verifyEmail = async (username, code) => {
-  try {
-    const data = await authAPI.verifyEmail(username, code)
-    if (data.success) {
-      showNotification('success', t('common.tips'), t('auth.verifySuccess'))
-      // 验证成功后跳转回登录页或自动登录（如果已经有了token）
-      currentView.value = 'login'
-    }
-  } catch (error) {
-    showNotification('error', t('common.tips'), error.message || t('auth.verifyFailed'))
-  }
-}
-
-const requestPasswordReset = async (username, email, callback) => {
-  try {
-    const data = await authAPI.requestPasswordReset(username, email)
-    if (data.success) {
-      showNotification('info', t('common.tips'), t('auth.emailVerificationSent'))
-      if (callback) callback()
-    }
-  } catch (error) {
-    showNotification('error', t('common.tips'), error.message || 'Request failed')
-  }
-}
-
-const resetPassword = async (username, code, newPassword, callback) => {
-  try {
-    const data = await authAPI.resetPassword(username, code, newPassword)
-    if (data.success) {
-      showNotification('success', t('common.tips'), t('auth.resetSuccess'))
-      if (callback) callback()
-    }
-  } catch (error) {
-    showNotification('error', t('common.tips'), error.message || t('auth.resetFailed'))
   }
 }
 

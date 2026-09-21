@@ -26,7 +26,7 @@ export class AdminDO extends DurableObject {
         return new Response(JSON.stringify({ error: 'Username already exists' }), { status: 409 })
       }
       
-      // 严格检查：只要邮箱被任何用户关联（无论是否验证），都视为不可用
+      // 严格检查：只要邮箱已被任何用户关联，都视为不可用
       if (normalizedEmail && users.some(u => u.email?.toLowerCase().trim() === normalizedEmail)) {
         return new Response(JSON.stringify({ error: 'Email already in use' }), { status: 409 })
       }
@@ -35,7 +35,7 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/add-user') {
-      const { username, type, email, emailVerified, avatar, bio } = await request.json() as { username: string, type: string, email: string, emailVerified?: boolean, avatar?: string, bio?: string }
+      const { username, type, email, avatar, bio } = await request.json() as { username: string, type: string, email: string, avatar?: string, bio?: string }
       const users = (await this.ctx.storage.get('users')) as Array<any> || []
 
       const normalizedEmail = email.toLowerCase().trim()
@@ -51,7 +51,6 @@ export class AdminDO extends DurableObject {
         username, 
         type, 
         email: normalizedEmail,
-        emailVerified: emailVerified ?? false,
         avatar: avatar || (userIndex !== -1 ? users[userIndex].avatar : ''),
         bio: bio || (userIndex !== -1 ? users[userIndex].bio : '')
       }
@@ -81,25 +80,6 @@ export class AdminDO extends DurableObject {
       })
     }
 
-    if (request.method === 'POST' && url.pathname === '/update-user-status') {
-      const { username, emailVerified }: { username: string, emailVerified: boolean } = await request.json()
-      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
-      
-      const userIndex = users.findIndex(u => u.username === username)
-      if (userIndex !== -1) {
-        users[userIndex].emailVerified = emailVerified
-        await this.ctx.storage.put('users', users)
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-      
-      return new Response(JSON.stringify({ error: 'User not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
     if (request.method === 'POST' && url.pathname === '/remove-user') {
       const { username }: { username: string } = await request.json()
       const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string}> || []
@@ -112,9 +92,9 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/init-admin') {
-      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string, emailVerified?: boolean}> || []
+      const users = (await this.ctx.storage.get('users')) as Array<{username: string, type: string}> || []
       if (users.length === 0) {
-        users.push({ username: 'admin', type: 'admin', emailVerified: true })
+        users.push({ username: 'admin', type: 'admin' })
         await this.ctx.storage.put('users', users)
       }
       return new Response(JSON.stringify({ success: true }), {

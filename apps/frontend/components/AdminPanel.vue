@@ -309,12 +309,7 @@
                 <span v-else style="font-size: 1.25rem; font-weight: bold; color: var(--color-text-secondary);">{{ u.username.charAt(0).toUpperCase() }}</span>
               </div>
               <div class="admin-user-details" style="flex: 1; min-width: 0;">
-                <h4 class="admin-user-name" style="margin: 0 0 0.25rem; font-size: 1.125rem; font-weight: bold; display: flex; align-items: center; gap: 0.5rem;">
-                  {{ u.username }}
-                  <svg v-if="u.emailVerified" style="width: 1rem; height: 1rem; color: #3b82f6;" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.633.326 1.223.777 1.674a3.066 3.066 0 010 4.338 3.066 3.066 0 00-.777 1.674 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.777-1.674 3.066 3.066 0 010-4.338 3.066 3.066 0 00.777-1.674 3.066 3.066 0 012.812-2.812zM9 11a1 1 0 112-2v3a1 1 0 11-2 0v-3zm1-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                  </svg>
-                </h4>
+                <h4 class="admin-user-name">{{ u.username }}</h4>
                 <p v-if="u.email" style="font-size: 0.75rem; color: var(--color-text-tertiary); margin: 0 0 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.email }}</p>
                 <p v-if="u.bio" style="font-size: 0.8125rem; color: var(--color-text-secondary); margin: 0 0 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.4;">{{ u.bio }}</p>
                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -1304,16 +1299,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-}
-
-.admin-user-verified-icon {
-  width: 1.125rem;
-  height: 1.125rem;
-  color: #3b82f6;
-  flex-shrink: 0;
 }
 
 .admin-user-badge {
