@@ -22,10 +22,10 @@ interface Profile {
   [key: string]: any
 }
 
-// 账号级字段只能由服务端流程（注册、邮箱验证、改密、管理员操作）写入，
-// 绝不能通过用户可控的资料更新 / 导入覆盖，否则可以自行伪造 emailVerified 或提权 type。
+// 账号级字段只能由服务端流程（注册、改密、管理员操作）写入，
+// 绝不能通过用户可控的资料更新 / 导入覆盖，否则可以自行提权 type。
 const ACCOUNT_FIELDS: ReadonlyArray<keyof CreateAccount> = [
-  'username', 'password', 'token', 'type', 'email', 'emailVerified', 'verificationCode'
+  'username', 'password', 'token', 'type', 'email'
 ]
 
 function stripAccountFields(profile: Record<string, any>): Profile {
@@ -76,75 +76,12 @@ export class UserDO extends DurableObject {
           valid: true, 
           type: data.type, 
           username: data.username,
-          email: data.email,
-          emailVerified: data.emailVerified
+          email: data.email
         }), {
           headers: { 'Content-Type': 'application/json' }
         })
       } else {
         return new Response(JSON.stringify({ valid: false }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/verify-email') {
-      const { code }: { code: string } = await request.json()
-      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
-      if (data && data.verificationCode === code) {
-        data.emailVerified = true
-        delete data.verificationCode
-        await this.ctx.storage.put('user', data)
-        return new Response(JSON.stringify({ 
-          success: true, 
-          username: data.username, 
-          email: data.email, 
-          type: data.type 
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      } else {
-        return new Response(JSON.stringify({ success: false, error: 'Invalid verification code' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-    }
-
-    if (request.method === 'POST' && url.pathname === '/request-password-reset') {
-      const { email }: { email: string } = await request.json()
-      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
-      
-      if (!data || data.email !== email) {
-        return new Response(JSON.stringify({ error: 'User not found or email mismatch' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' }
-        })
-      }
-
-      const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
-      data.verificationCode = resetCode // Reuse verificationCode field for simplicity
-      await this.ctx.storage.put('user', data)
-
-      return new Response(JSON.stringify({ success: true, code: resetCode }), {
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    if (request.method === 'POST' && url.pathname === '/reset-password') {
-      const { code, newPassword }: { code: string, newPassword: string } = await request.json()
-      const data = await this.ctx.storage.get('user') as CreateAccount | undefined
-      
-      if (data && data.verificationCode === code) {
-        data.password = newPassword
-        delete data.verificationCode
-        await this.ctx.storage.put('user', data)
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      } else {
-        return new Response(JSON.stringify({ error: 'Invalid reset code' }), {
-          status: 400,
           headers: { 'Content-Type': 'application/json' }
         })
       }
@@ -183,8 +120,7 @@ export class UserDO extends DurableObject {
           ...stripAccountFields(profile),
           // 放在展开之后：账号信息以 user 记录为准，不受 profile 内容影响
           username: data.username,
-          email: data.email,
-          emailVerified: data.emailVerified
+          email: data.email
         }), {
           headers: { 'Content-Type': 'application/json' }
         })
@@ -226,9 +162,9 @@ export class UserDO extends DurableObject {
     if (request.method === 'GET' && url.pathname === '/export') {
       const account = await this.ctx.storage.get('user') as CreateAccount | undefined
       const profile = await this.ctx.storage.get('profile')
-      // 导出文件会离开系统，不能包含密码哈希、会话 token 或待验证的验证码
+      // 导出文件会离开系统，不能包含密码哈希或会话 token
       const user = account
-        ? { username: account.username, type: account.type, email: account.email, emailVerified: account.emailVerified }
+        ? { username: account.username, type: account.type, email: account.email }
         : undefined
       return new Response(JSON.stringify({ user, profile }), {
         headers: { 'Content-Type': 'application/json' }
@@ -236,7 +172,7 @@ export class UserDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/import') {
-      // 只恢复资料。user 记录（身份、凭据、角色、邮箱验证状态）永远不从导入文件中读取，
+      // 只恢复资料。user 记录（身份、凭据、角色）永远不从导入文件中读取，
       // 否则任何登录用户都能把自己的 type 改成 admin。
       const { profile } = await request.json() as { profile?: any }
       if (profile && typeof profile === 'object' && !Array.isArray(profile)) {

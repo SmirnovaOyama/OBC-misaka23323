@@ -32,7 +32,6 @@ admin.post('/users/sync-existing', authMiddleware, requirePermission(['admin', '
         username: targetUsername, 
         type: userData.type || 'user',
         email: userData.email,
-        emailVerified: userData.emailVerified || false,
         avatar: profileData.avatar,
         bio: profileData.bio
       }),
@@ -78,7 +77,7 @@ admin.post('/users/list', authMiddleware, requirePermission(['admin', 'root']), 
       return c.json({ error: 'Failed to fetch users' }, 500)
     }
 
-    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string, emailVerified?: boolean}> }
+    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string}> }
     console.log('Users from AdminDO:', allUsers.users.length, 'users:', allUsers.users.map(u => u.username))
 
     // 过滤掉root用户
@@ -105,7 +104,7 @@ admin.get('/users', authMiddleware, requirePermission(['admin', 'root']), async 
       return c.json({ error: 'Failed to fetch users' }, 500)
     }
 
-    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string, emailVerified?: boolean}> }
+    const allUsers = await doResponse.json() as { users: Array<{username: string, type: string}> }
     const users = allUsers.users.filter(u => u.username !== c.env.ROOT_USERNAME)
     return c.json({ users })
   } catch (error: any) {
@@ -152,8 +151,7 @@ admin.post('/users', authMiddleware, requirePermission(['admin', 'root']), async
         password: hashedPassword, 
         type, 
         token,
-        email,
-        emailVerified: true 
+        email
       }),
       headers: { 'Content-Type': 'application/json' }
     })
@@ -161,7 +159,7 @@ admin.post('/users', authMiddleware, requirePermission(['admin', 'root']), async
     // 3. 同步到 AdminDO
     await adminStub.fetch('http://internal/add-user', {
       method: 'POST',
-      body: JSON.stringify({ username: newUsername, type, email, emailVerified: true }),
+      body: JSON.stringify({ username: newUsername, type, email }),
       headers: { 'Content-Type': 'application/json' }
     })
 

@@ -4,5 +4,4 @@
 interface CloudflareBindings {
   ROOT_USERNAME?: string
   ROOT_PASSWORD?: string
-  RESEND_API_KEY?: string
 }
