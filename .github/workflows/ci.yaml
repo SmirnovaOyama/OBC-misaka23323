@@ -40,7 +40,7 @@ jobs:
         shell: bash
         run: |
           set -eo pipefail
-          pnpm build --bail 2>&1 | tee build.log
+          pnpm build 2>&1 | tee build.log
 
       # Comment or update existing PR comment with status
       - name: Comment on PR (update if exists)
