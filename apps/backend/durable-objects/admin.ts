@@ -68,12 +68,13 @@ export class AdminDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/sync-profile') {
-      const { username, avatar, bio } = await request.json()
+      const { username, avatar, bio } = await request.json() as { username: string, avatar?: string, bio?: string }
       const users = (await this.ctx.storage.get('users')) as Array<any> || []
       const index = users.findIndex(u => u.username === username)
       if (index !== -1) {
-        users[index].avatar = avatar
-        users[index].bio = bio
+        // 局部更新：只覆盖调用方明确提供的字段，避免把未变更的字段清空
+        if (avatar !== undefined) users[index].avatar = avatar
+        if (bio !== undefined) users[index].bio = bio
         await this.ctx.storage.put('users', users)
       }
       return new Response(JSON.stringify({ success: true }), {

@@ -43,6 +43,28 @@ app.use('*', async (c, next) => {
 
 const api = new Hono<{ Bindings: CloudflareBindings }>()
 
+// 将头像和简介同步到 AdminDO 缓存，以便在用户列表中显示。
+// 只发送请求中实际包含的字段：上游改为局部更新后，未变更的字段不会出现在请求体中，
+// 不能把它们当作 undefined 写入缓存。
+async function syncProfileCache(env: CloudflareBindings, username: string, profile: Record<string, any>) {
+  const patch: Record<string, string> = {}
+  if ('avatar' in profile) patch.avatar = profile.avatar
+  if ('bio' in profile) patch.bio = profile.bio
+  if (Object.keys(patch).length === 0) return
+
+  try {
+    const adminId = env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = env.ADMIN_DO.get(adminId)
+    await adminStub.fetch('http://internal/sync-profile', {
+      method: 'POST',
+      body: JSON.stringify({ username, ...patch }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+  } catch (adminError) {
+    console.error('[API] Failed to sync profile cache to AdminDO:', adminError)
+  }
+}
+
 api.route('/signup', siginup)
 api.route('/signin', signin)
 api.route('/delete', delate)
@@ -162,23 +184,8 @@ api.post('/user/:username', async (c) => {
 
     if (updateResponse.ok) {
       console.log('[API] Profile updated successfully. Syncing to AdminDO cache...')
-      // 同步头像和简介到 AdminDO 缓存，以便在用户列表中显示
-      try {
-        const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
-        const adminStub = c.env.ADMIN_DO.get(adminId)
-        await adminStub.fetch('http://internal/sync-profile', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            username, 
-            avatar: profileData.avatar, 
-            bio: profileData.bio 
-          }),
-          headers: { 'Content-Type': 'application/json' }
-        })
-      } catch (adminError) {
-        console.error('[API] Failed to sync profile cache to AdminDO:', adminError)
-      }
-      
+      await syncProfileCache(c.env, username, profileData)
+
       return c.json({ success: true })
     } else {
       const errorText = await updateResponse.text()
@@ -274,6 +281,10 @@ api.post('/user/:username/import', async (c) => {
     })
 
     if (importResponse.ok) {
+      // 导入的资料同样可能带有头像/简介，需要刷新 AdminDO 缓存
+      if (importData.profile && typeof importData.profile === 'object') {
+        await syncProfileCache(c.env, username, importData.profile)
+      }
       return c.json({ success: true })
     } else {
       return c.json({ error: 'Import failed' }, 500)
