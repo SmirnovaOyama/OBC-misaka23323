@@ -1,5 +1,5 @@
 // API服务层 - 管理员相关
-const API_BASE = '/api/'
+import { API_BASE } from './api.js'
 
 export const adminAPI = {
   // 获取用户列表
@@ -38,7 +38,8 @@ export const adminAPI = {
         token,
         newUsername: userData.username,
         password: userData.password,
-        type: userData.type
+        type: userData.type,
+        email: userData.email
       })
     })
 
@@ -72,25 +73,6 @@ export const adminAPI = {
       } catch (parseError) {
         throw new Error(`Failed to delete user: ${response.status} ${response.statusText}`)
       }
-    }
-
-    return await response.json()
-  },
-
-  // 修改用户密码
-  async changePassword(targetUsername, newPassword, token, adminUsername) {
-    const response = await fetch(`${API_BASE}admin/users/password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ username: adminUsername, token, targetUsername, newPassword })
-    })
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to change password')
     }
 
     return await response.json()
@@ -150,6 +132,34 @@ export const adminAPI = {
 
     if (!response.ok) {
       throw new Error('Failed to update settings')
+    }
+
+    return await response.json()
+  },
+
+  // 修改用户密码
+  async changePassword(targetUsername, newPassword, token, username) {
+    const response = await fetch(`${API_BASE}admin/users/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        username,
+        token,
+        targetUsername,
+        newPassword
+      })
+    })
+
+    if (!response.ok) {
+      try {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to change password')
+      } catch (parseError) {
+        throw new Error(`Failed to change password: ${response.status} ${response.statusText}`)
+      }
     }
 
     return await response.json()

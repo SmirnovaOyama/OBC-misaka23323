@@ -23,6 +23,7 @@
     "remove": "移除",
     "default": "預設",
     "optional": "選填",
+    "notSet": "未設定",
     "username": "使用者名稱",
     "password": "密碼",
     "name": "姓名",
@@ -80,9 +81,14 @@
     "userCreateError": "建立使用者錯誤",
     "userDeleted": "使用者刪除成功",
     "userDeleteFailed": "刪除使用者失敗",
-    "userDeleteError": "刪除使用者錯誤",
+    "userDeleteError": "建立使用者錯誤",
     "enterUsername": "輸入使用者名稱",
     "enterPassword": "輸入密碼",
+    "changePassword": "修改密碼",
+    "newPassword": "新密碼",
+    "enterNewPassword": "請輸入新密碼",
+    "passwordChanged": "密碼修改成功",
+    "passwordChangeFailed": "修改密碼失敗",
     "systemSettings": "系統設置",
     "manageSystem": "管理系統外觀和全局設置",
     "siteAppearance": "網站外觀",
@@ -104,6 +110,10 @@
   "profile": {
     "edit": "編輯個人資料",
     "name": "姓名",
+    "userType": "帳戶類型",
+    "accountPersonal": "個人",
+    "accountCompany": "公司",
+    "accountOrganization": "組織",
     "enterName": "請輸入姓名",
     "pronouns": "人稱代詞",
     "enterPronouns": "如：他/him、她/her、TA/they",
@@ -165,6 +175,7 @@
     "saveProfile": "儲存資料",
     "saveSuccess": "儲存成功",
     "saveFailed": "儲存失敗",
+    "noChanges": "未發現任何更改",
     "imageTooLarge": "圖片大小不能超過2MB",
     "backgroundTooLarge": "背景圖片大小不能超過3MB",
     "uploadError": "上傳失敗"
@@ -264,6 +275,15 @@
     "notImageFile": "{filename} 不是圖片檔案，已略過",
     "photoAlt": "相簿圖片",
     "loadFailed": "圖片載入失敗"
+  },
+  "data": {
+    "export": "匯出帳戶數據",
+    "import": "匯入帳戶數據",
+    "importConfirm": "匯入數據將覆蓋目前所有資料，確定要繼續嗎？",
+    "importSuccess": "數據匯入成功",
+    "importFailed": "數據匯入失敗",
+    "exportSuccess": "數據匯出成功",
+    "exportFailed": "數據匯出失敗"
   },
   "error": {
     "404": "404",

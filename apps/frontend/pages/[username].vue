@@ -11,32 +11,46 @@
       <div style="background: var(--color-bg-overlay); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 1rem; box-shadow: var(--shadow-sm); border: 1px solid var(--color-border-tertiary); overflow: hidden;">
         <!-- 资料头部 -->
         <ProfileHeader
-          :profile-data="profileData"
+          :profile-data="displayProfileData"
           :can-edit="canEdit"
           :site-settings="settings"
           @toggle-edit="editMode = !editMode"
         />
 
         <!-- 编辑模式 -->
+        <div v-if="editMode && canEdit" style="padding: 0 2rem; margin-top: 2rem; margin-bottom: -1rem; display: flex; justify-content: flex-end;">
+           <div style="display: flex; align-items: center; gap: 0.5rem;">
+             <label style="font-weight: 600; font-size: 0.875rem; color: var(--color-text-secondary);">Editing Language:</label>
+             <select v-model="currentEditLang" style="padding: 0.25rem 0.5rem; border-radius: 0.375rem; border: 1px solid var(--color-border-secondary); background: var(--color-bg-primary); color: var(--color-text-primary);">
+               <option value="default">{{ $t('common.default') || 'Default' }}</option>
+               <option v-for="l in supportedLocales" :key="l.code" :value="l.code">{{ l.name }}</option>
+             </select>
+           </div>
+        </div>
+
         <ProfileEditForm
           v-if="editMode && canEdit"
-          :edit-data="editData"
+          :edit-data="activeEditData"
           :username="username"
           :saving="savingProfileHeader"
           @save="saveProfileHeader"
           @cancel="cancelEdit"
-          @update:name="editData.name = $event"
-          @update:pronouns="editData.pronouns = $event"
-          @update:avatar="editData.avatar = $event"
-          @update:bio="editData.bio = $event"
-          @update:background="editData.background = $event"
-          @update:location="editData.location = $event"
-          @update:website="editData.website = $event"
-          @update:currentCompany="editData.currentCompany = $event"
-          @update:currentCompanyLink="editData.currentCompanyLink = $event"
-          @update:currentSchool="editData.currentSchool = $event"
-          @update:currentSchoolLink="editData.currentSchoolLink = $event"
+          @update:name="updateEditField('name', $event)"
+          @update:userType="updateEditField('userType', $event)"
+          @update:pronouns="updateEditField('pronouns', $event)"
+          @update:avatar="updateEditField('avatar', $event)"
+          @update:bio="updateEditField('bio', $event)"
+          @update:background="updateEditField('background', $event)"
+          @update:location="updateEditField('location', $event)"
+          @update:website="updateEditField('website', $event)"
+          @update:currentCompany="updateEditField('currentCompany', $event)"
+          @update:currentCompanyLink="updateEditField('currentCompanyLink', $event)"
+          @update:currentSchool="updateEditField('currentSchool', $event)"
+          @update:currentSchoolLink="updateEditField('currentSchoolLink', $event)"
           @update:workExperiences="editData.workExperiences = $event"
+          @export-data="handleExportData"
+          @import-data="handleImportData"
+          @change-password="openChangePasswordModal"
         />
 
         <!-- 联系方式列表 -->
@@ -159,6 +173,38 @@
       </div>
     </main>
 
+    <!-- 悬浮编辑控制栏 -->
+    <transition name="fade">
+      <div v-if="editMode && canEdit" style="position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; gap: 0.5rem; background: var(--color-bg-overlay); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); padding: 0.5rem; border-radius: 9999px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.2); border: 1px solid var(--color-border-tertiary); min-width: 200px; justify-content: center;">
+        <button
+          @click="cancelEdit"
+          style="padding: 0.75rem 1.5rem; border-radius: 9999px; font-weight: 600; color: var(--color-text-secondary); transition: all 0.2s; cursor: pointer; border: none; background: transparent;"
+          onmouseover="this.style.backgroundColor='var(--color-bg-tertiary)'; this.style.color='var(--color-text-primary)'"
+          onmouseout="this.style.backgroundColor='transparent'; this.style.color='var(--color-text-secondary)'"
+        >
+          {{ $t('common.cancel') }}
+        </button>
+        <button
+          @click="saveAll"
+          :disabled="isAnySaving"
+          style="padding: 0.75rem 2rem; border-radius: 9999px; font-weight: 600; color: var(--color-text-inverse); background: var(--color-primary); transition: all 0.2s; cursor: pointer; border: none; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center;"
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.backgroundColor='var(--color-primary-hover)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.backgroundColor='var(--color-primary)'"
+        >
+          <template v-if="isAnySaving">
+            <svg class="animate-spin" style="width: 1.25rem; height: 1.25rem; margin-right: 0.5rem;" fill="none" viewBox="0 0 24 24">
+              <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            {{ $t('common.saving') }}
+          </template>
+          <template v-else>
+            {{ $t('common.save') }}
+          </template>
+        </button>
+      </div>
+    </transition>
+
     <!-- 二维码弹窗 -->
     <QRCodeModal
       :show="qrCodeModal.show"
@@ -173,8 +219,47 @@
       :type="notificationModal.type"
       :title="notificationModal.title"
       :message="notificationModal.message"
+      :details="notificationModal.details"
       @close="closeNotificationModal"
     />
+
+    <!-- 修改密码弹窗 -->
+    <div v-if="changePasswordModal.show" class="modal-overlay" @click="closeChangePasswordModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">{{ $t('admin.changePassword') }}</h3>
+          <button @click="closeChangePasswordModal" class="modal-close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <form @submit.prevent="handleChangePassword" class="modal-form">
+          <div class="admin-form-field">
+            <label for="newPassword" class="admin-form-label">{{ $t('admin.newPassword') }}</label>
+            <input
+              id="newPassword"
+              v-model="changePasswordModal.newPassword"
+              type="password"
+              :placeholder="$t('admin.enterNewPassword')"
+              required
+              class="admin-form-input"
+              autofocus
+            />
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="closeChangePasswordModal" class="modal-btn-secondary">
+              {{ $t('common.cancel') }}
+            </button>
+            <button type="submit" :disabled="changePasswordModal.submitting" class="modal-btn-primary">
+              <span v-if="!changePasswordModal.submitting">{{ $t('common.confirm') }}</span>
+              <div v-else class="spinner"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -202,10 +287,11 @@ import WorkExperienceEdit from '../components/WorkExperienceEdit.vue'
 import SchoolExperience from '../components/SchoolExperience.vue'
 import SchoolExperienceEdit from '../components/SchoolExperienceEdit.vue'
 import { useSocialLinksData } from '../composables/useGitHubData'
+import { supportedLocales } from '../i18n'
 import { userAPI, authAPI } from '../api/index.js'
 
 const route = useRoute()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const username = route.params.username
 
 // 系统设置
@@ -230,6 +316,7 @@ const fetchSettings = async () => {
 const profileData = ref({
   username: username,
   name: '',
+  userType: '',
   pronouns: '',
   avatar: '',
   bio: '',
@@ -262,6 +349,72 @@ const savingGallery = ref(false)
 
 const editData = ref({ ...profileData.value })
 
+// 编辑语言状态
+const currentEditLang = ref('default')
+
+// 计算当前编辑的数据（合并默认数据和语言特定数据）
+const activeEditData = computed(() => {
+  if (currentEditLang.value === 'default') {
+    return editData.value
+  }
+  
+  // 确保 locales 对象存在
+  if (!editData.value.locales) {
+    editData.value.locales = {}
+  }
+  // 确保特定语言对象存在
+  if (!editData.value.locales[currentEditLang.value]) {
+    editData.value.locales[currentEditLang.value] = {}
+  }
+  
+  // 合并数据
+  return {
+    ...editData.value,
+    ...editData.value.locales[currentEditLang.value]
+  }
+})
+
+// 更新编辑字段的辅助函数
+const updateEditField = (field, value) => {
+  if (currentEditLang.value === 'default') {
+    editData.value[field] = value
+  } else {
+    if (!editData.value.locales) editData.value.locales = {}
+    if (!editData.value.locales[currentEditLang.value]) editData.value.locales[currentEditLang.value] = {}
+    editData.value.locales[currentEditLang.value][field] = value
+  }
+}
+
+// 显示用的资料数据（根据当前界面语言自动切换）
+const displayProfileData = computed(() => {
+  const currentLocale = locale.value
+  const data = { ...profileData.value }
+  
+  if (data.locales && data.locales[currentLocale]) {
+    // 过滤掉空值，避免覆盖默认值（可选，根据需求决定）
+    // 这里简单合并
+    Object.assign(data, data.locales[currentLocale])
+  }
+  return data
+})
+
+// 是否正在保存任何部分
+const isAnySaving = computed(() => {
+  return savingProfileHeader.value ||
+         savingContacts.value ||
+         savingSocialLinks.value ||
+         savingProjects.value ||
+         savingWork.value ||
+         savingSchool.value ||
+         savingGallery.value
+})
+
+// 保存所有更改
+const saveAll = async () => {
+  // performSave 会更新所有更改的字段
+  await saveProfileHeader()
+}
+
 // 二维码弹窗状态
 const qrCodeModal = ref({
   show: false,
@@ -275,6 +428,13 @@ const notificationModal = ref({
   type: 'info',
   title: '',
   message: ''
+})
+
+// 修改密码弹窗状态
+const changePasswordModal = ref({
+  show: false,
+  newPassword: '',
+  submitting: false
 })
 
 // 获取cookie
@@ -398,6 +558,21 @@ const checkLogin = () => {
   }
 }
 
+// 检查数据是否有更改
+const getChangedFields = (oldData, newData) => {
+  const changes = {}
+  Object.keys(newData).forEach(key => {
+    // 特殊处理数组和对象，使用 JSON.stringify 进行简单深比较
+    const oldValue = oldData[key]
+    const newValue = newData[key]
+    
+    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+      changes[key] = newValue
+    }
+  })
+  return changes
+}
+
 // 通用保存函数
 const performSave = async (loadingRef) => {
   if (!currentUser.value || !token.value) return
@@ -414,14 +589,24 @@ const performSave = async (loadingRef) => {
       filteredData.workExperiences = filteredData.workExperiences.filter(exp => exp.position && exp.position.trim() && exp.company && exp.company.trim())
     }
 
-    await userAPI.updateProfile(username, filteredData, token.value)
-    // 使用深拷贝避免引用问题
+    // 获取已更改的字段
+    const changedFields = getChangedFields(profileData.value, filteredData)
+    
+    // 如果没有更改，直接返回
+    if (Object.keys(changedFields).length === 0) {
+      showNotification('info', t('common.tips'), t('profile.noChanges'))
+      loadingRef.value = false
+      return
+    }
+
+    await userAPI.updateProfile(username, changedFields, token.value)
+    // 使用深拷贝更新本地数据
     profileData.value = JSON.parse(JSON.stringify(filteredData))
     // 不关闭编辑模式，允许用户继续编辑其他部分
     // editMode.value = false 
     showNotification('success', t('common.tips'), t('profile.saveSuccess'))
   } catch (error) {
-    showNotification('error', t('common.tips'), t('profile.saveFailed'))
+    showNotification('error', t('common.tips'), t('profile.saveFailed'), error.message || String(error))
   } finally {
     loadingRef.value = false
   }
@@ -444,6 +629,76 @@ const cancelEdit = () => {
   // 使用深拷贝避免引用问题
   editData.value = JSON.parse(JSON.stringify(profileData.value))
   editMode.value = false
+}
+
+// 导出账户数据
+const handleExportData = async () => {
+  try {
+    const data = await userAPI.exportData(username, token.value)
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `openbiocard-${username}-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    showNotification('success', t('data.exportSuccess'), '')
+  } catch (error) {
+    console.error('导出数据失败:', error)
+    showNotification('error', t('data.exportFailed'), error.message)
+  }
+}
+
+// 导入账户数据
+const handleImportData = async (data) => {
+  try {
+    console.log('开始导入数据:', data)
+    await userAPI.importData(username, data, token.value)
+    showNotification('success', t('data.importSuccess'), '')
+    // 导入成功后刷新页面
+    setTimeout(() => {
+      window.location.reload()
+    }, 1500)
+  } catch (error) {
+    console.error('导入数据失败:', error)
+    showNotification('error', t('data.importFailed'), error.message)
+  }
+}
+
+// 打开修改密码弹窗
+const openChangePasswordModal = () => {
+  changePasswordModal.value = {
+    show: true,
+    newPassword: '',
+    submitting: false
+  }
+}
+
+// 关闭修改密码弹窗
+const closeChangePasswordModal = () => {
+  changePasswordModal.value.show = false
+}
+
+// 处理修改密码提交
+const handleChangePassword = async () => {
+  if (!currentUser.value || !token.value) return
+  
+  const { newPassword } = changePasswordModal.value
+  if (!newPassword) return
+
+  changePasswordModal.value.submitting = true
+  try {
+    await userAPI.changePassword(username, newPassword, token.value)
+    showNotification('success', t('common.tips'), t('admin.passwordChanged'))
+    closeChangePasswordModal()
+  } catch (error) {
+    console.error('Change password error:', error)
+    showNotification('error', t('common.tips'), t('admin.passwordChangeFailed'), error.message || String(error))
+  } finally {
+    changePasswordModal.value.submitting = false
+  }
 }
 
 // 添加联系方式
@@ -514,17 +769,19 @@ const closeNotificationModal = () => {
     show: false,
     type: 'info',
     title: '',
-    message: ''
+    message: '',
+    details: ''
   }
 }
 
 // 显示通知弹窗
-const showNotification = (type, title, message) => {
+const showNotification = (type, title, message, details = '') => {
   notificationModal.value = {
     show: true,
     type,
     title,
-    message
+    message,
+    details
   }
 }
 
@@ -827,3 +1084,179 @@ onMounted(async () => {
   loadProfile()
 })
 </script>
+
+<style scoped>
+/* 弹窗基础样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background: var(--color-bg-overlay);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 450px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -6px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--color-border-tertiary);
+  overflow: hidden;
+  animation: modal-in 0.3s ease-out;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--color-border-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.modal-close {
+  padding: 0.5rem;
+  color: var(--color-text-tertiary);
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+}
+
+.modal-close:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.modal-form {
+  padding: 1.5rem;
+}
+
+.admin-form-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.5rem;
+}
+
+.admin-form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.admin-form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s;
+  font-size: 0.9375rem;
+  box-sizing: border-box;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.admin-form-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.modal-btn-secondary {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn-secondary:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.modal-btn-primary {
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-inverse);
+  background: var(--color-primary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5rem;
+}
+
+.modal-btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.modal-btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 适配移动端 */
+@media (max-width: 640px) {
+  .modal-content {
+    border-radius: 0.75rem;
+  }
+  
+  .modal-header, .modal-form {
+    padding: 1rem;
+  }
+}
+</style>

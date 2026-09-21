@@ -1,32 +1,9 @@
 import { Hono } from 'hono'
+import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { authMiddleware, requirePermission, AuthVariables } from '../middleware/auth'
 import { hashPassword } from '../utils/password'
 
 export const admin = new Hono<{ Bindings: CloudflareBindings & { ADMIN_DO: DurableObjectNamespace }, Variables: AuthVariables }>()
-
-admin.post('/users/password', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
-  try {
-    const { targetUsername, newPassword } = await c.req.json()
-    const hashedPassword = await hashPassword(newPassword)
-    const id = c.env.USER_DO.idFromName(targetUsername)
-    const stub = c.env.USER_DO.get(id)
-    
-    // 获取当前数据并更新密码
-    const getResp = await stub.fetch('http://internal/get')
-    if (!getResp.ok) return c.json({ error: 'User not found' }, 404)
-    const userData: any = await getResp.json()
-    
-    const updateResp = await stub.fetch('http://do/store', {
-      method: 'POST',
-      body: JSON.stringify({ ...userData, password: hashedPassword }),
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-    return updateResp.ok ? c.json({ success: true }) : c.json({ error: 'Update failed' }, 500)
-  } catch (error) {
-    return c.json({ error: 'Internal server error' }, 500)
-  }
-})
 
 admin.post('/users/sync-existing', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
   try {
@@ -159,7 +136,7 @@ admin.post('/users', authMiddleware, requirePermission(['admin', 'root']), async
 
     if (!checkResp.ok) {
       const err: any = await checkResp.json()
-      return c.json({ error: err.error === 'Email already in use' ? 'Email already in use' : 'Username already exists' }, checkResp.status)
+      return c.json({ error: err.error === 'Email already in use' ? 'Email already in use' : 'Username already exists' }, checkResp.status as ContentfulStatusCode)
     }
 
     // 2. 创建 UserDO
@@ -285,6 +262,41 @@ admin.delete('/users/:username', authMiddleware, requirePermission(['admin', 'ro
     return c.json({ message: 'User deleted' })
   } catch (error: any) {
     console.error('Delete user error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// 修改用户密码（admin权限）
+admin.post('/users/change-password', authMiddleware, requirePermission(['admin', 'root']), async (c) => {
+  try {
+    const { targetUsername, newPassword } = await c.req.json() as { targetUsername: string, newPassword: string }
+    
+    if (!targetUsername || !newPassword) {
+      return c.json({ error: 'Username and password are required' }, 400)
+    }
+
+    // 检查是否在修改 root 密码
+    if (targetUsername === c.env.ROOT_USERNAME) {
+      return c.json({ error: 'Cannot change root password via this API' }, 403)
+    }
+
+    const hashedPassword = await hashPassword(newPassword)
+    
+    const userId = c.env.USER_DO.idFromName(targetUsername)
+    const userStub = c.env.USER_DO.get(userId)
+    const response = await userStub.fetch('http://do/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ password: hashedPassword }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (!response.ok) {
+      return c.json({ error: 'Failed to change password' }, 500)
+    }
+
+    return c.json({ success: true, message: 'Password changed successfully' })
+  } catch (error: any) {
+    console.error('Change password error:', error)
     return c.json({ error: 'Internal server error' }, 500)
   }
 })

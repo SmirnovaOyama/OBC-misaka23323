@@ -5,19 +5,7 @@ import { delate } from './router/delate'
 import { admin } from './router/admin'
 import { UserDO } from './durable-objects/user'
 import { AdminDO } from './durable-objects/admin'
-
-type CloudflareBindings = {
-  USER_DO: DurableObjectNamespace
-  ADMIN_DO: DurableObjectNamespace
-  ASSETS: Fetcher
-  ENVIRONMENT?: string
-  CORS_ALLOWED_ORIGINS?: string
-  CORS_ALLOWED_METHODS?: string
-  CORS_ALLOWED_HEADERS?: string
-  ROOT_USERNAME?: string
-  ROOT_PASSWORD?: string
-  RESEND_API_KEY?: string
-}
+import { hashPassword } from './utils/password'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -41,6 +29,28 @@ app.use('*', async (c, next) => {
 })
 
 const api = new Hono<{ Bindings: CloudflareBindings }>()
+
+// 将头像和简介同步到 AdminDO 缓存，以便在用户列表中显示。
+// 只发送请求中实际包含的字段：上游改为局部更新后，未变更的字段不会出现在请求体中，
+// 不能把它们当作 undefined 写入缓存。
+async function syncProfileCache(env: CloudflareBindings, username: string, profile: Record<string, any>) {
+  const patch: Record<string, string> = {}
+  if ('avatar' in profile) patch.avatar = profile.avatar
+  if ('bio' in profile) patch.bio = profile.bio
+  if (Object.keys(patch).length === 0) return
+
+  try {
+    const adminId = env.ADMIN_DO.idFromName('admin-manager')
+    const adminStub = env.ADMIN_DO.get(adminId)
+    await adminStub.fetch('http://internal/sync-profile', {
+      method: 'POST',
+      body: JSON.stringify({ username, ...patch }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+  } catch (adminError) {
+    console.error('[API] Failed to sync profile cache to AdminDO:', adminError)
+  }
+}
 
 api.route('/signup', siginup)
 api.route('/signin', signin)
@@ -161,23 +171,8 @@ api.post('/user/:username', async (c) => {
 
     if (updateResponse.ok) {
       console.log('[API] Profile updated successfully. Syncing to AdminDO cache...')
-      // 同步头像和简介到 AdminDO 缓存，以便在用户列表中显示
-      try {
-        const adminId = c.env.ADMIN_DO.idFromName('admin-manager')
-        const adminStub = c.env.ADMIN_DO.get(adminId)
-        await adminStub.fetch('http://internal/sync-profile', {
-          method: 'POST',
-          body: JSON.stringify({ 
-            username, 
-            avatar: profileData.avatar, 
-            bio: profileData.bio 
-          }),
-          headers: { 'Content-Type': 'application/json' }
-        })
-      } catch (adminError) {
-        console.error('[API] Failed to sync profile cache to AdminDO:', adminError)
-      }
-      
+      await syncProfileCache(c.env, username, profileData)
+
       return c.json({ success: true })
     } else {
       const errorText = await updateResponse.text()
@@ -188,6 +183,148 @@ api.post('/user/:username', async (c) => {
     console.error('[API] Internal server error in POST /user/:username:', error)
     // @ts-ignore
     return c.json({ error: 'Internal server error', message: error.message, stack: error.stack }, 500)
+  }
+})
+
+// 导出用户全量数据API
+api.get('/user/:username/export', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 验证token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      return c.json({ error: 'Invalid token' }, 401)
+    }
+
+    const exportResponse = await stub.fetch('http://internal/export')
+    if (exportResponse.ok) {
+      const data = await exportResponse.json()
+      return c.json(data)
+    } else {
+      return c.json({ error: 'Export failed' }, 500)
+    }
+  } catch (error) {
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// 导入用户全量数据API
+api.post('/user/:username/import', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 验证token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+    console.log(`[API] Token verification for ${username}:`, verifyResult)
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      console.log(`[API] Token verification failed for ${username}:`, verifyResult)
+      return c.json({ error: 'Invalid token', details: verifyResult }, 401)
+    }
+
+    const importData = await c.req.json()
+    console.log(`[API] Importing profile data for ${username}`)
+
+    // 只导入资料部分；账号记录由 UserDO 保持不变
+    const importResponse = await stub.fetch('http://internal/import', {
+      method: 'POST',
+      body: JSON.stringify({ profile: importData?.profile })
+    })
+
+    if (importResponse.ok) {
+      // 导入的资料同样可能带有头像/简介，需要刷新 AdminDO 缓存
+      if (importData.profile && typeof importData.profile === 'object') {
+        await syncProfileCache(c.env, username, importData.profile)
+      }
+      return c.json({ success: true })
+    } else {
+      return c.json({ error: 'Import failed' }, 500)
+    }
+  } catch (error) {
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// 用户修改自己密码 API
+api.post('/user/:username/change-password', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 1. 验证 token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      return c.json({ error: 'Invalid token' }, 401)
+    }
+
+    // 2. 修改密码
+    const { newPassword } = await c.req.json() as { newPassword: string }
+    if (!newPassword) {
+      return c.json({ error: 'New password is required' }, 400)
+    }
+
+    const hashedPassword = await hashPassword(newPassword)
+    const changeResponse = await stub.fetch('http://internal/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ password: hashedPassword }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (changeResponse.ok) {
+      return c.json({ success: true, message: 'Password changed successfully' })
+    } else {
+      return c.json({ error: 'Failed to change password' }, 500)
+    }
+  } catch (error) {
+    console.error('User change password error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
   }
 })
 
