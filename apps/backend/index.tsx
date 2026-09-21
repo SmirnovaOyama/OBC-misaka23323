@@ -255,16 +255,12 @@ api.post('/user/:username/import', async (c) => {
     }
 
     const importData = await c.req.json()
-    console.log(`[API] Importing data for ${username}. Current user token in import data:`, importData.user?.token)
-    
-    // 强制保持当前 token
-    if (importData.user) {
-      importData.user.token = token
-    }
+    console.log(`[API] Importing profile data for ${username}`)
 
+    // 只导入资料部分；账号记录由 UserDO 保持不变
     const importResponse = await stub.fetch('http://internal/import', {
       method: 'POST',
-      body: JSON.stringify(importData)
+      body: JSON.stringify({ profile: importData?.profile })
     })
 
     if (importResponse.ok) {

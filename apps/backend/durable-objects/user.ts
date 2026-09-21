@@ -22,6 +22,18 @@ interface Profile {
   [key: string]: any
 }
 
+// 账号级字段只能由服务端流程（注册、邮箱验证、改密、管理员操作）写入，
+// 绝不能通过用户可控的资料更新 / 导入覆盖，否则可以自行伪造 emailVerified 或提权 type。
+const ACCOUNT_FIELDS: ReadonlyArray<keyof CreateAccount> = [
+  'username', 'password', 'token', 'type', 'email', 'emailVerified', 'verificationCode'
+]
+
+function stripAccountFields(profile: Record<string, any>): Profile {
+  const cleaned: Record<string, any> = { ...profile }
+  for (const key of ACCOUNT_FIELDS) delete cleaned[key]
+  return cleaned as Profile
+}
+
 export class UserDO extends DurableObject {
   constructor(state: DurableObjectState, env: CloudflareBindings) {
     super(state, env)
@@ -152,9 +164,6 @@ export class UserDO extends DurableObject {
       if (data) {
         const profile = (await this.ctx.storage.get('profile') || {}) as Profile
         return new Response(JSON.stringify({
-          username: data.username,
-          email: data.email,
-          emailVerified: data.emailVerified,
           name: '',
           userType: profile.userType || '',
           avatar: '',
@@ -171,7 +180,11 @@ export class UserDO extends DurableObject {
           currentSchoolLink: profile.currentSchoolLink || '',
           workExperiences: profile.workExperiences || [],
           schoolExperiences: profile.schoolExperiences || [],
-          ...profile
+          ...stripAccountFields(profile),
+          // 放在展开之后：账号信息以 user 记录为准，不受 profile 内容影响
+          username: data.username,
+          email: data.email,
+          emailVerified: data.emailVerified
         }), {
           headers: { 'Content-Type': 'application/json' }
         })
@@ -184,7 +197,7 @@ export class UserDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/update-profile') {
-      const profileData = await request.json() as Record<string, any>
+      const profileData = stripAccountFields(await request.json() as Record<string, any>)
       const existingProfile = (await this.ctx.storage.get('profile') || {}) as Profile
       const updatedProfile = { ...existingProfile, ...profileData }
       await this.ctx.storage.put('profile', updatedProfile)
@@ -211,17 +224,24 @@ export class UserDO extends DurableObject {
     }
 
     if (request.method === 'GET' && url.pathname === '/export') {
-      const user = await this.ctx.storage.get('user')
+      const account = await this.ctx.storage.get('user') as CreateAccount | undefined
       const profile = await this.ctx.storage.get('profile')
+      // 导出文件会离开系统，不能包含密码哈希、会话 token 或待验证的验证码
+      const user = account
+        ? { username: account.username, type: account.type, email: account.email, emailVerified: account.emailVerified }
+        : undefined
       return new Response(JSON.stringify({ user, profile }), {
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
     if (request.method === 'POST' && url.pathname === '/import') {
-      const { user, profile } = await request.json() as { user: any, profile: any }
-      if (user) await this.ctx.storage.put('user', user)
-      if (profile) await this.ctx.storage.put('profile', profile)
+      // 只恢复资料。user 记录（身份、凭据、角色、邮箱验证状态）永远不从导入文件中读取，
+      // 否则任何登录用户都能把自己的 type 改成 admin。
+      const { profile } = await request.json() as { profile?: any }
+      if (profile && typeof profile === 'object' && !Array.isArray(profile)) {
+        await this.ctx.storage.put('profile', stripAccountFields(profile))
+      }
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json' }
       })
