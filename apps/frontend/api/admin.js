@@ -38,7 +38,8 @@ export const adminAPI = {
         token,
         newUsername: userData.username,
         password: userData.password,
-        type: userData.type
+        type: userData.type,
+        email: userData.email
       })
     })
 

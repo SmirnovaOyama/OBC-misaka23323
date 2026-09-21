@@ -617,7 +617,7 @@ const createUser = async () => {
     const result = await adminAPI.createUser(newUser.value, props.token, props.user.username)
     console.log('Create user result:', result)
     showNotification('success', t('common.tips'), t('admin.userCreated'))
-    newUser.value = { username: '', password: '', type: 'user' }
+    newUser.value = { username: '', email: '', password: '', type: 'user' }
     console.log('Refreshing user list after creation')
     await fetchUsers()
   } catch (error) {
