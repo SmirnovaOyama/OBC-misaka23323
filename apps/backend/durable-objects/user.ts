@@ -3,6 +3,7 @@ import { DurableObject } from 'cloudflare:workers'
 
 interface Profile {
   name?: string
+  userType?: string
   avatar?: string
   bio?: string
   location?: string
@@ -17,6 +18,7 @@ interface Profile {
   currentSchoolLink?: string
   workExperiences?: any[]
   schoolExperiences?: any[]
+  locales?: { [key: string]: Partial<Profile> }
   [key: string]: any
 }
 
@@ -37,7 +39,7 @@ export class UserDO extends DurableObject {
         try {
           // 这里需要AdminDO的引用，暂时简化
           // 实际应该通过环境变量传递AdminDO
-        } catch (e) {
+        } catch {
           // 忽略错误
         }
       }
@@ -154,6 +156,7 @@ export class UserDO extends DurableObject {
           email: data.email,
           emailVerified: data.emailVerified,
           name: '',
+          userType: profile.userType || '',
           avatar: '',
           bio: '',
           location: '',
@@ -181,8 +184,44 @@ export class UserDO extends DurableObject {
     }
 
     if (request.method === 'POST' && url.pathname === '/update-profile') {
-      const profileData = await request.json()
-      await this.ctx.storage.put('profile', profileData)
+      const profileData = await request.json() as Record<string, any>
+      const existingProfile = (await this.ctx.storage.get('profile') || {}) as Profile
+      const updatedProfile = { ...existingProfile, ...profileData }
+      await this.ctx.storage.put('profile', updatedProfile)
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/change-password') {
+      const { password: hashedPassword }: { password: string } = await request.json()
+      const userData = await this.ctx.storage.get('user') as CreateAccount | undefined
+      if (userData) {
+        userData.password = hashedPassword
+        await this.ctx.storage.put('user', userData)
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      } else {
+        return new Response(JSON.stringify({ error: 'User not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/export') {
+      const user = await this.ctx.storage.get('user')
+      const profile = await this.ctx.storage.get('profile')
+      return new Response(JSON.stringify({ user, profile }), {
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (request.method === 'POST' && url.pathname === '/import') {
+      const { user, profile } = await request.json() as { user: any, profile: any }
+      if (user) await this.ctx.storage.put('user', user)
+      if (profile) await this.ctx.storage.put('profile', profile)
       return new Response(JSON.stringify({ success: true }), {
         headers: { 'Content-Type': 'application/json' }
       })

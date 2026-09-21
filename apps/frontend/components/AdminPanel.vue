@@ -326,20 +326,70 @@
             </div>
 
             <!-- 操作按钮 -->
-            <div class="admin-user-actions" style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-border-tertiary); display: flex; gap: 0.75rem;">
-              <button @click="promptChangePassword(u.username)" style="flex: 1; padding: 0.5rem; font-size: 0.8125rem; border-radius: 0.375rem; border: 1px solid var(--color-border-secondary); background: var(--color-bg-primary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.2s;">
+            <div class="admin-user-actions">
+              <button v-if="u.type !== 'root'" @click="openChangePasswordModal(u.username)" class="admin-user-btn secondary">
+                <svg class="admin-user-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
                 {{ $t('admin.changePassword') }}
               </button>
-              <button v-if="u.username !== user.username && u.type !== 'root'" @click="deleteUser(u.username)" style="padding: 0.5rem; color: var(--color-danger); background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;" :title="$t('common.delete')">
-                <svg style="width: 1.25rem; height: 1.25rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+
+              <button v-if="u.username !== user.username && u.type !== 'root'" @click="deleteUser(u.username)" class="admin-user-btn danger">
+                <svg class="admin-user-btn-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"></path>
                 </svg>
+                {{ $t('admin.deleteUser') }}
               </button>
+              
+              <div v-if="u.username === user.username" class="admin-user-current">
+                <svg class="admin-user-current-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM9 12L11 14L15 10"></path>
+                </svg>
+                {{ $t('admin.currentUser') }}
+              </div>
             </div>
           </div>
         </div>
       </div>
     </main>
+
+    <!-- 修改密码弹窗 -->
+    <div v-if="changePasswordModal.show" class="modal-overlay" @click="closeChangePasswordModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">{{ $t('admin.changePassword') }} - {{ changePasswordModal.targetUsername }}</h3>
+          <button @click="closeChangePasswordModal" class="modal-close">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <form @submit.prevent="handleChangePassword" class="modal-form">
+          <div class="admin-form-field">
+            <label for="newPassword" class="admin-form-label">{{ $t('admin.newPassword') }}</label>
+            <input
+              id="newPassword"
+              v-model="changePasswordModal.newPassword"
+              type="password"
+              :placeholder="$t('admin.enterNewPassword')"
+              required
+              class="admin-form-input"
+              autofocus
+            />
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="closeChangePasswordModal" class="modal-btn-secondary">
+              {{ $t('common.cancel') }}
+            </button>
+            <button type="submit" :disabled="changePasswordModal.submitting" class="modal-btn-primary">
+              <span v-if="!changePasswordModal.submitting">{{ $t('common.save') }}</span>
+              <div v-else class="spinner mini"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- 通知弹窗 -->
     <NotificationModal
@@ -347,6 +397,7 @@
       :type="notificationModal.type"
       :title="notificationModal.title"
       :message="notificationModal.message"
+      :details="notificationModal.details"
       @close="closeNotificationModal"
     />
   </div>
@@ -381,7 +432,20 @@ const newUser = ref({
 })
 const creating = ref(false)
 const mobileMenuOpen = ref(false)
+
+// 修改密码弹窗状态
+const changePasswordModal = ref({
+  show: false,
+  targetUsername: '',
+  newPassword: '',
+  submitting: false
+})
+
 const settings = ref({
+  title: 'OpenBioCard',
+  logo: ''
+})
+const originalSettings = ref({
   title: 'OpenBioCard',
   logo: ''
 })
@@ -401,21 +465,6 @@ const syncUser = async () => {
     showNotification('error', t('common.tips'), t('admin.syncFailed'))
   } finally {
     syncing.value = false
-  }
-}
-
-const promptChangePassword = async (targetUsername) => {
-  const newPassword = window.prompt(t('admin.newPasswordPlaceholder'))
-  if (!newPassword || newPassword.length < 6) {
-    if (newPassword) alert('密码至少需要6位')
-    return
-  }
-  
-  try {
-    await adminAPI.changePassword(targetUsername, newPassword, props.token, props.user.username)
-    showNotification('success', t('common.tips'), t('admin.resetSuccess'))
-  } catch (error) {
-    showNotification('error', t('common.tips'), error.message)
   }
 }
 
@@ -463,7 +512,7 @@ const handleLogoUpload = async (event) => {
     settings.value.logo = compressedBase64
   } catch (error) {
     console.error('Logo compression failed:', error)
-    showNotification('error', t('common.tips'), t('admin.uploadError') || 'Logo upload failed')
+    showNotification('error', t('common.tips'), t('admin.uploadError') || 'Logo upload failed', error.message || String(error))
   }
 }
 
@@ -476,7 +525,8 @@ const notificationModal = ref({
   show: false,
   type: 'info',
   title: '',
-  message: ''
+  message: '',
+  details: ''
 })
 
 const toggleMobileMenu = () => {
@@ -496,21 +546,43 @@ const fetchSettings = async () => {
   if (!props.user || !props.token) return
   try {
     const data = await adminAPI.getSettings(props.token, props.user.username)
-    settings.value = data
+    settings.value = JSON.parse(JSON.stringify(data))
+    originalSettings.value = JSON.parse(JSON.stringify(data))
   } catch (error) {
     console.error('获取系统设置失败:', error)
   }
 }
 
+const getChangedFields = (oldData, newData) => {
+  const changes = {}
+  Object.keys(newData).forEach(key => {
+    const oldValue = oldData[key]
+    const newValue = newData[key]
+    if (JSON.stringify(oldValue) !== JSON.stringify(newValue)) {
+      changes[key] = newValue
+    }
+  })
+  return changes
+}
+
 const saveSettings = async () => {
   if (!props.user || !props.token) return
+
+  const changedFields = getChangedFields(originalSettings.value, settings.value)
+  
+  if (Object.keys(changedFields).length === 0) {
+    showNotification('info', t('common.tips'), t('profile.noChanges') || 'No changes to save')
+    return
+  }
+
   savingSettings.value = true
   try {
-    await adminAPI.updateSettings(settings.value, props.token, props.user.username)
+    await adminAPI.updateSettings(changedFields, props.token, props.user.username)
+    originalSettings.value = JSON.parse(JSON.stringify(settings.value))
     showNotification('success', t('common.tips'), t('admin.settingsUpdated'))
   } catch (error) {
     console.error('更新系统设置失败:', error)
-    showNotification('error', t('common.tips'), error.message)
+    showNotification('error', t('common.tips'), t('admin.settingsUpdateFailed') || 'Settings update failed', error.message || String(error))
   } finally {
     savingSettings.value = false
   }
@@ -550,7 +622,7 @@ const createUser = async () => {
     await fetchUsers()
   } catch (error) {
     console.error('Create user error:', error)
-    showNotification('error', t('common.tips'), `${t('admin.userCreateFailed')}: ${error.message}`)
+    showNotification('error', t('common.tips'), t('admin.userCreateFailed'), error.message || String(error))
   } finally {
     creating.value = false
   }
@@ -572,7 +644,42 @@ const deleteUser = async (username) => {
     await fetchUsers()
   } catch (error) {
     console.error('Delete user error:', error)
-    showNotification('error', t('common.tips'), `${t('admin.userDeleteFailed')}: ${error.message}`)
+    showNotification('error', t('common.tips'), t('admin.userDeleteFailed'), error.message || String(error))
+  }
+}
+
+// 打开修改密码弹窗
+const openChangePasswordModal = (username) => {
+  changePasswordModal.value = {
+    show: true,
+    targetUsername: username,
+    newPassword: '',
+    submitting: false
+  }
+}
+
+// 关闭修改密码弹窗
+const closeChangePasswordModal = () => {
+  changePasswordModal.value.show = false
+}
+
+// 处理修改密码提交
+const handleChangePassword = async () => {
+  if (!props.user || !props.token) return
+  
+  const { targetUsername, newPassword } = changePasswordModal.value
+  if (!newPassword) return
+
+  changePasswordModal.value.submitting = true
+  try {
+    await adminAPI.changePassword(targetUsername, newPassword, props.token, props.user.username)
+    showNotification('success', t('common.tips'), t('admin.passwordChanged'))
+    closeChangePasswordModal()
+  } catch (error) {
+    console.error('Change password error:', error)
+    showNotification('error', t('common.tips'), t('admin.passwordChangeFailed'), error.message || String(error))
+  } finally {
+    changePasswordModal.value.submitting = false
   }
 }
 
@@ -586,17 +693,19 @@ const closeNotificationModal = () => {
     show: false,
     type: 'info',
     title: '',
-    message: ''
+    message: '',
+    details: ''
   }
 }
 
 // 显示通知弹窗
-const showNotification = (type, title, message) => {
+const showNotification = (type, title, message, details = '') => {
   notificationModal.value = {
     show: true,
     type,
     title,
-    message
+    message,
+    details
   }
 }
 
@@ -1234,13 +1343,16 @@ onBeforeUnmount(() => {
   height: 0.875rem;
 }
 
-.admin-user-delete {
+.admin-user-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-user-btn {
   width: 100%;
   padding: 0.625rem;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-danger-light);
   border-radius: 0.5rem;
-  color: var(--color-danger);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -1249,16 +1361,36 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  border: 1px solid transparent;
 }
 
-.admin-user-delete:hover {
+.admin-user-btn.secondary {
+  background: var(--color-bg-primary);
+  border-color: var(--color-border-secondary);
+  color: var(--color-text-secondary);
+}
+
+.admin-user-btn.secondary:hover {
+  background-color: var(--color-bg-hover);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.admin-user-btn.danger {
+  background: var(--color-bg-primary);
+  border-color: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.admin-user-btn.danger:hover {
   background-color: var(--color-danger-bg);
   border-color: var(--color-danger);
 }
 
-.admin-user-delete-icon {
+.admin-user-btn-icon {
   width: 1rem;
   height: 1rem;
+  flex-shrink: 0;
 }
 
 .admin-user-current {
@@ -1279,6 +1411,109 @@ onBeforeUnmount(() => {
 .admin-user-current-icon {
   width: 1.125rem;
   height: 1.125rem;
+}
+
+/* 弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--color-bg-overlay);
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 400px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border-tertiary);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.modal-btn-primary,
+.modal-btn-secondary {
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn-primary {
+  background: var(--color-primary);
+  color: var(--color-text-inverse);
+  border: none;
+}
+
+.modal-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.modal-btn-secondary {
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border-secondary);
+}
+
+.modal-btn-secondary:hover {
+  background: var(--color-bg-hover);
+}
+
+.spinner.mini {
+  width: 1rem;
+  height: 1rem;
+  border-width: 1.5px;
 }
 
 /* 响应式设计 */

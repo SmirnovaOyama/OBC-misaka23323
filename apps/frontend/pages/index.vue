@@ -18,6 +18,7 @@
       :type="notificationModal.type"
       :title="notificationModal.title"
       :message="notificationModal.message"
+      :details="notificationModal.details"
       @close="closeNotificationModal"
     />
   </div>
@@ -62,7 +63,8 @@ const notificationModal = ref({
   show: false,
   type: 'info',
   title: '',
-  message: ''
+  message: '',
+  details: ''
 })
 
 // 获取系统设置
@@ -157,7 +159,7 @@ const login = async (username, password) => {
       showNotification('error', t('common.tips'), t('auth.loginFailed'))
     }
   } catch (error) {
-    showNotification('error', t('common.tips'), t('auth.loginError'))
+    showNotification('error', t('common.tips'), t('auth.loginError'), error.message || String(error))
   }
 }
 
@@ -234,17 +236,19 @@ const closeNotificationModal = () => {
     show: false,
     type: 'info',
     title: '',
-    message: ''
+    message: '',
+    details: ''
   }
 }
 
 // 显示通知弹窗
-const showNotification = (type, title, message) => {
+const showNotification = (type, title, message, details = '') => {
   notificationModal.value = {
     show: true,
     type,
     title,
-    message
+    message,
+    details
   }
 }
 

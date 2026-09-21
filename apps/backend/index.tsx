@@ -5,6 +5,7 @@ import { delate } from './router/delate'
 import { admin } from './router/admin'
 import { UserDO } from './durable-objects/user'
 import { AdminDO } from './durable-objects/admin'
+import { hashPassword } from './utils/password'
 
 type CloudflareBindings = {
   USER_DO: DurableObjectNamespace
@@ -188,6 +189,148 @@ api.post('/user/:username', async (c) => {
     console.error('[API] Internal server error in POST /user/:username:', error)
     // @ts-ignore
     return c.json({ error: 'Internal server error', message: error.message, stack: error.stack }, 500)
+  }
+})
+
+// 导出用户全量数据API
+api.get('/user/:username/export', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 验证token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      return c.json({ error: 'Invalid token' }, 401)
+    }
+
+    const exportResponse = await stub.fetch('http://internal/export')
+    if (exportResponse.ok) {
+      const data = await exportResponse.json()
+      return c.json(data)
+    } else {
+      return c.json({ error: 'Export failed' }, 500)
+    }
+  } catch (error) {
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// 导入用户全量数据API
+api.post('/user/:username/import', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 验证token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+    console.log(`[API] Token verification for ${username}:`, verifyResult)
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      console.log(`[API] Token verification failed for ${username}:`, verifyResult)
+      return c.json({ error: 'Invalid token', details: verifyResult }, 401)
+    }
+
+    const importData = await c.req.json()
+    console.log(`[API] Importing data for ${username}. Current user token in import data:`, importData.user?.token)
+    
+    // 强制保持当前 token
+    if (importData.user) {
+      importData.user.token = token
+    }
+
+    const importResponse = await stub.fetch('http://internal/import', {
+      method: 'POST',
+      body: JSON.stringify(importData)
+    })
+
+    if (importResponse.ok) {
+      return c.json({ success: true })
+    } else {
+      return c.json({ error: 'Import failed' }, 500)
+    }
+  } catch (error) {
+    return c.json({ error: 'Internal server error' }, 500)
+  }
+})
+
+// 用户修改自己密码 API
+api.post('/user/:username/change-password', async (c) => {
+  const username = c.req.param('username')
+  const authHeader = c.req.header('Authorization')
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return c.json({ error: 'Unauthorized' }, 401)
+  }
+
+  const token = authHeader.substring(7)
+
+  try {
+    const id = c.env.USER_DO.idFromName(username)
+    const stub = c.env.USER_DO.get(id)
+    
+    // 1. 验证 token
+    const verifyResponse = await stub.fetch('http://internal/verify-token', {
+      method: 'POST',
+      body: JSON.stringify({ token })
+    })
+
+    const verifyResult: any = await verifyResponse.json()
+
+    if (!verifyResponse.ok || !verifyResult.valid) {
+      return c.json({ error: 'Invalid token' }, 401)
+    }
+
+    // 2. 修改密码
+    const { newPassword } = await c.req.json() as { newPassword: string }
+    if (!newPassword) {
+      return c.json({ error: 'New password is required' }, 400)
+    }
+
+    const hashedPassword = await hashPassword(newPassword)
+    const changeResponse = await stub.fetch('http://internal/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ password: hashedPassword }),
+      headers: { 'Content-Type': 'application/json' }
+    })
+
+    if (changeResponse.ok) {
+      return c.json({ success: true, message: 'Password changed successfully' })
+    } else {
+      return c.json({ error: 'Failed to change password' }, 500)
+    }
+  } catch (error) {
+    console.error('User change password error:', error)
+    return c.json({ error: 'Internal server error' }, 500)
   }
 })
 

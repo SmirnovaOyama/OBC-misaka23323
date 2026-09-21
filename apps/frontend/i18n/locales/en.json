@@ -23,6 +23,7 @@
     "remove": "Remove",
     "default": "Default",
     "optional": "Optional",
+    "notSet": "Not Set",
     "username": "Username",
     "password": "Password",
     "name": "Name",
@@ -83,6 +84,11 @@
     "userDeleteError": "Error deleting user",
     "enterUsername": "Enter username",
     "enterPassword": "Enter password",
+    "changePassword": "Change Password",
+    "newPassword": "New Password",
+    "enterNewPassword": "Enter new password",
+    "passwordChanged": "Password changed successfully",
+    "passwordChangeFailed": "Failed to change password",
     "systemSettings": "System Settings",
     "manageSystem": "Manage system appearance and global settings",
     "siteAppearance": "Site Appearance",
@@ -104,6 +110,10 @@
   "profile": {
     "edit": "Edit Profile",
     "name": "Name",
+    "userType": "Account Type",
+    "accountPersonal": "Personal",
+    "accountCompany": "Company",
+    "accountOrganization": "Organization",
     "enterName": "Enter name",
     "pronouns": "Pronouns",
     "enterPronouns": "e.g., he/him, she/her, they/them",
@@ -165,6 +175,7 @@
     "saveProfile": "Save Profile",
     "saveSuccess": "Saved successfully",
     "saveFailed": "Failed to save",
+    "noChanges": "No changes detected",
     "imageTooLarge": "Image size cannot exceed 2MB",
     "backgroundTooLarge": "Background image size cannot exceed 3MB",
     "uploadError": "Upload failed"
@@ -264,6 +275,15 @@
     "notImageFile": "{filename} is not an image file, skipped",
     "photoAlt": "Gallery photo",
     "loadFailed": "Image failed to load"
+  },
+  "data": {
+    "export": "Export Account Data",
+    "import": "Import Account Data",
+    "importConfirm": "Importing data will overwrite all current information. Are you sure you want to continue?",
+    "importSuccess": "Data imported successfully",
+    "importFailed": "Failed to import data",
+    "exportSuccess": "Data exported successfully",
+    "exportFailed": "Failed to export data"
   },
   "error": {
     "404": "404",

@@ -2,16 +2,47 @@
 
 ## 目录
 
-- [概述](#概述)
-- [认证机制](#认证机制)
-- [用户类型](#用户类型)
-- [错误响应](#错误响应)
-- [API 端点](#api-端点)
-  - [认证相关](#认证相关)
-  - [用户资料](#用户资料)
-  - [管理员功能](#管理员功能)
-  - [系统设置](#系统设置)
-  - [系统初始化与信息](#系统初始化与信息)
+- [OpenBioCard API 文档](#openbiocard-api-文档)
+  - [目录](#目录)
+  - [概述](#概述)
+  - [认证机制](#认证机制)
+    - [Token 认证](#token-认证)
+    - [Token 生成](#token-生成)
+  - [用户类型](#用户类型)
+  - [错误响应](#错误响应)
+    - [HTTP 状态码](#http-状态码)
+  - [API 端点](#api-端点)
+    - [认证相关](#认证相关)
+      - [1. 用户注册](#1-用户注册)
+      - [2. 用户登录](#2-用户登录)
+      - [3. 删除账号](#3-删除账号)
+    - [用户资料](#用户资料)
+      - [4. 获取用户资料](#4-获取用户资料)
+      - [5. 更新用户资料](#5-更新用户资料)
+      - [6. 导出用户数据](#6-导出用户数据)
+      - [7. 导入用户数据](#7-导入用户数据)
+    - [管理员功能](#管理员功能)
+      - [8. 检查权限](#8-检查权限)
+      - [9. 获取用户列表（POST）](#9-获取用户列表post)
+      - [10. 获取用户列表（GET）](#10-获取用户列表get)
+      - [11. 创建用户](#11-创建用户)
+      - [12. 删除用户](#12-删除用户)
+    - [系统设置](#系统设置)
+      - [13. 获取公开系统设置](#13-获取公开系统设置)
+      - [14. 获取完整系统设置（管理员）](#14-获取完整系统设置管理员)
+      - [15. 更新系统设置](#15-更新系统设置)
+    - [系统初始化与信息](#系统初始化与信息)
+      - [16. 初始化管理员](#16-初始化管理员)
+      - [17. 获取 API 信息](#17-获取-api-信息)
+  - [数据存储说明](#数据存储说明)
+    - [Durable Objects](#durable-objects)
+    - [数据一致性](#数据一致性)
+  - [环境变量](#环境变量)
+  - [前端路由](#前端路由)
+    - [页面路由](#页面路由)
+  - [安全说明](#安全说明)
+  - [版本信息](#版本信息)
+  - [联系方式](#联系方式)
 
 ---
 
@@ -300,6 +331,7 @@ Authorization: Bearer your-token-here
 |------|------|------|
 | `username` | string | 用户名 |
 | `name` | string | 显示名称 |
+| `userType` | string | 账户类型：`personal` (个人), `company` (公司), `organization` (组织) |
 | `pronouns` | string | 人称代词（如：he/him, she/her, they/them） |
 | `avatar` | string | 头像（字符、emoji 或 base64 图片） |
 | `bio` | string | 个人简介 |
@@ -403,6 +435,7 @@ Authorization: Bearer your-token-here
 {
   "username": "johndoe",
   "name": "John Doe Updated",
+  "userType": "personal",
   "pronouns": "he/him",
   "avatar": "👨‍💻",
   "bio": "Updated bio",
@@ -441,11 +474,101 @@ Authorization: Bearer your-token-here
 
 ---
 
+#### 6. 导出用户数据
+
+导出当前登录用户的全量数据（包含账号信息和资料信息）。
+
+**端点:** `GET /api/user/:username/export`
+
+**需要认证:** 是（必须是资料所有者）
+
+**URL 参数:**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `username` | string | 要导出的用户名 |
+
+**认证方式:**
+```
+Authorization: Bearer your-token-here
+```
+
+**成功响应:** `200 OK`
+```json
+{
+  "user": {
+    "username": "johndoe",
+    "type": "user",
+    "token": "..."
+  },
+  "profile": {
+    "name": "John Doe",
+    "avatar": "👨",
+    "bio": "Full-stack developer",
+    ...
+  }
+}
+```
+
+**错误响应:**
+- `401` - Token 无效或缺失
+- `500` - 导出失败
+
+---
+
+#### 7. 导入用户数据
+
+导入用户全量数据，覆盖现有资料。系统会自动保持当前登录使用的 Token。
+
+**端点:** `POST /api/user/:username/import`
+
+**需要认证:** 是（必须是资料所有者）
+
+**URL 参数:**
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `username` | string | 要导入的用户名 |
+
+**认证方式:**
+```
+Authorization: Bearer your-token-here
+```
+
+**请求体:**
+```json
+{
+  "user": {
+    "username": "johndoe",
+    "type": "user",
+    "token": "..."
+  },
+  "profile": {
+    "name": "John Doe",
+    "avatar": "👨",
+    ...
+  }
+}
+```
+
+**成功响应:** `200 OK`
+```json
+{
+  "success": true
+}
+```
+
+**错误响应:**
+- `401` - Token 无效或缺失
+- `500` - 导入失败
+
+---
+
 ### 管理员功能
 
 所有管理员功能需要 `admin` 或 `root` 权限。
 
-#### 6. 检查权限
+#### 8. 检查权限
 
 验证当前用户的管理员权限。
 
@@ -477,7 +600,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 7. 获取用户列表（POST）
+#### 9. 获取用户列表（POST）
 
 获取所有用户列表（POST 方式，供前端使用）。
 
@@ -522,7 +645,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 8. 获取用户列表（GET）
+#### 10. 获取用户列表（GET）
 
 获取所有用户列表（GET 方式）。
 
@@ -568,7 +691,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 9. 创建用户
+#### 11. 创建用户
 
 创建新用户（仅管理员可用）。
 
@@ -620,7 +743,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 10. 删除用户
+#### 12. 删除用户
 
 删除指定用户及其所有资料。
 
@@ -666,7 +789,7 @@ Authorization: Bearer your-token-here
 
 ### 系统设置
 
-#### 11. 获取公开系统设置
+#### 13. 获取公开系统设置
 
 获取系统的公开配置（如站点标题、Logo 等）。
 
@@ -686,7 +809,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 12. 获取完整系统设置（管理员）
+#### 14. 获取完整系统设置（管理员）
 
 获取系统的完整配置。
 
@@ -710,7 +833,7 @@ Authorization: Bearer your-token-here
 
 ---
 
-#### 13. 更新系统设置
+#### 15. 更新系统设置
 
 更新系统配置。
 
@@ -740,7 +863,7 @@ Authorization: Bearer your-token-here
 
 ### 系统初始化与信息
 
-#### 14. 初始化管理员
+#### 16. 初始化管理员
 
 初始化系统，创建默认的 admin 用户。
 
@@ -759,7 +882,7 @@ Admin initialized
 
 ---
 
-#### 15. 获取 API 信息
+#### 17. 获取 API 信息
 
 获取 API 的基本信息和可用端点。
 
@@ -773,9 +896,10 @@ Admin initialized
   "message": "OpenBioCard API",
   "version": "1.0.0",
   "endpoints": {
-    "auth": ["/signup", "/signin"],
-    "user": ["/user/:username"],
-    "admin": ["/admin", "/init-admin"]
+    "auth": ["/signup/create", "/signin", "/delete"],
+    "user": ["/user/:username", "/user/:username/export", "/user/:username/import"],
+    "admin": ["/admin/users", "/admin/settings", "/init-admin"],
+    "system": ["/settings"]
   }
 }
 ```
